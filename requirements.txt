@@ -1,6 +1,6 @@
 streamlit
 pandas
 numpy
-nba_api
+nfl_api
 api-dfs-wrapper
 requests
