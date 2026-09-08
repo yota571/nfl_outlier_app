@@ -108,6 +108,12 @@ def main():
         return
     if board.empty:
         st.info('No verified props available for this slate. Check Health for source or mapping issues.'); return
+    if database_url():
+        try:
+            from storage import save_board_snapshot
+            save_board_snapshot(database_url(), board, fetched)
+        except Exception:
+            pass
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
     if nav=='Props':
         st.markdown('### NFL board')
