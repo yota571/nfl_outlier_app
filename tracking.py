@@ -43,10 +43,33 @@ def prepare_prediction(payload,now=None):
  key=hashlib.sha256(encoded.encode()).hexdigest()
  return key,now,{**payload,'created_at':now.isoformat()}
 
+def normalize_database_url(value):
+ """Accept a URI or a single copied Streamlit TOML assignment; never echo secrets."""
+ import re
+ import tomllib
+ message='Invalid database configuration. Use a PostgreSQL URI or one DATABASE_URL assignment.'
+ if not isinstance(value,str) or not value.strip(): raise ValueError(message)
+ value=value.strip()
+ if re.match(r'^DATABASE_URL\s*=',value):
+  try:
+   config=tomllib.loads(value)
+   if set(config)!={'DATABASE_URL'}: raise ValueError(message)
+   value=config['DATABASE_URL']
+  except (ValueError,TypeError): raise ValueError(message) from None
+ elif value[:1] in ('"', "'"):
+  try: value=tomllib.loads('value = '+value)['value']
+  except (ValueError,TypeError): raise ValueError(message) from None
+ if not isinstance(value,str) or not value.startswith(('postgresql://','postgres://')) or any(c in value for c in ('\n','\r')):
+  raise ValueError(message)
+ return value
+
+
 def connect(url):
  import psycopg
  from psycopg.conninfo import conninfo_to_dict
- mode=conninfo_to_dict(url).get('sslmode','require')
+ url=normalize_database_url(url)
+ try: mode=conninfo_to_dict(url).get('sslmode','require')
+ except psycopg.ProgrammingError: raise ValueError('Invalid PostgreSQL connection string; check the database secret.') from None
  if mode not in ('require','verify-ca','verify-full'): raise ValueError('Encrypted database connection required')
  return psycopg.connect(url,connect_timeout=8,prepare_threshold=None,sslmode=mode)
 
