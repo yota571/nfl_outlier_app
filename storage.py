@@ -54,7 +54,8 @@ def save_board_snapshot(database_url, board, fetched_at, stats=None):
     inserted=0
     with connect(database_url) as conn:
         conn.execute(DDL)
-        conn.execute('ALTER TABLE nfl_research_snapshots ENABLE ROW LEVEL SECURITY')
+        ensure_rls(conn, 'nfl_research_snapshots')
+        conn.commit()
         for value in values:
             result=conn.execute('INSERT INTO nfl_research_snapshots (snapshot_id,created_at,kickoff,model_version,payload) VALUES (%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING',value)
             inserted+=result.rowcount
@@ -65,9 +66,11 @@ def board_records(url):
     from tracking import connect
     with connect(url) as conn:
         conn.execute(DDL)
-        conn.execute('ALTER TABLE nfl_research_snapshots ENABLE ROW LEVEL SECURITY')
+        ensure_rls(conn, 'nfl_research_snapshots')
+        conn.commit()
         conn.execute('CREATE TABLE IF NOT EXISTS nfl_board_outcomes (snapshot_id TEXT PRIMARY KEY REFERENCES nfl_research_snapshots(snapshot_id), actual DOUBLE PRECISION NOT NULL, recorded_at TIMESTAMPTZ NOT NULL)')
-        conn.execute('ALTER TABLE nfl_board_outcomes ENABLE ROW LEVEL SECURITY')
+        ensure_rls(conn, 'nfl_board_outcomes')
+        conn.commit()
         rows=conn.execute("SELECT s.snapshot_id,s.payload,o.actual FROM nfl_research_snapshots s LEFT JOIN nfl_board_outcomes o USING(snapshot_id) WHERE s.model_version='board-v2' ORDER BY s.created_at DESC").fetchall()
     return [dict(**body,snapshot_id=key,actual=actual) for key,body,actual in rows]
 
@@ -89,3 +92,13 @@ def settle_board(url,stats,schedule,now=None):
             result=conn.execute('INSERT INTO nfl_board_outcomes VALUES (%s,%s,%s) ON CONFLICT DO NOTHING',(row['snapshot_id'],float(result.iloc[0]),now))
             saved+=result.rowcount
     return saved
+
+
+def ensure_rls(conn, table):
+    """Avoid requesting ACCESS EXCLUSIVE on every read/write once RLS is enabled."""
+    from psycopg import sql
+    row=conn.execute("SELECT relrowsecurity FROM pg_class WHERE oid=to_regclass(%s)",('public.'+table,)).fetchone()
+    if row is None: raise RuntimeError('Tracking table is unavailable')
+    if not row[0]:
+        conn.execute("SET LOCAL lock_timeout = '5s'")
+        conn.execute(sql.SQL('ALTER TABLE public.{} ENABLE ROW LEVEL SECURITY').format(sql.Identifier(table)))
