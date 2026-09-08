@@ -28,7 +28,7 @@ button {min-height:44px} [data-testid="stRadio"] {background:#101925;border-radi
 [data-testid="stRadio"] label p {font-size:13px}
 @media(max-width:640px){.block-container{padding:1rem .8rem 5rem} h1{font-size:1.65rem!important}.player{font-size:20px}.card{padding:15px} [data-testid="stRadio"] div[role="radiogroup"] {gap:6px} .stApp {overflow-x:hidden}}
 </style>''',unsafe_allow_html=True)
-LABELS={'pass_yds':'Passing yards','rush_yds':'Rushing yards','rec_yds':'Receiving yards','receptions':'Receptions','rush_att':'Rush attempts','pass_td':'Passing touchdowns','rush_rec_yds':'Rush + receiving yards','pass_rush_yds':'Pass + rushing yards'}
+LABELS={'targets':'Receiving targets','pass_yds':'Passing yards','rush_yds':'Rushing yards','rec_yds':'Receiving yards','receptions':'Receptions','rush_att':'Rush attempts','pass_td':'Passing touchdowns','rush_rec_yds':'Rush + receiving yards','pass_rush_yds':'Pass + rushing yards'}
 def database_url():
     url=os.environ.get('DATABASE_URL')
     if url: return url
@@ -67,7 +67,11 @@ def main():
         upload=st.file_uploader('Optional board JSON',type=['json'])
         if st.button('Refresh sources',use_container_width=True):
             board_source.clear(); foundation.clear(); play_history.clear(); depth_source.clear(); snap_source.clear(); cached_sim.clear()
-    nav=st.radio('Navigate',['Props','Player','Research','Health'],horizontal=True,label_visibility='collapsed')
+    nav=st.radio('Navigate',['Props','Player','Research','Results','Health'],horizontal=True,label_visibility='collapsed')
+    if nav=='Results':
+        from workload_ui import render_results
+        render_results(database_url())
+        return
     health=[]
     with st.spinner('Checking live board and player identities...'):
         try:
@@ -127,7 +131,7 @@ def main():
             games=stats[stats.player_id.eq(r.player_id)] if not stats.empty else pd.DataFrame()
             lean,lean_detail=historical_lean(games,r.market,r.line,n,r.sides)
             side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Side availability unknown'
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)}</div><div class="badge">{esc(lean)}</div><div class="muted">{esc(lean_detail)}</div><div class="muted">Model recommendation: not validated</div></div>''',unsafe_allow_html=True)
+            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)}</div><div class="badge">{esc(lean)}</div><div class="muted">{esc(lean_detail)}</div><div class="muted">Historical comparison / not a model pick</div></div>''',unsafe_allow_html=True)
         st.number_input('Page',1,pages,page,key='board_page')
         st.caption(f'{len(view)} matching lines. Sorted by kickoff and player, not historical hit rate.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
@@ -163,6 +167,9 @@ def main():
     props=board[board.player.eq(player)].reset_index(drop=True)
     choice=st.selectbox('Prop',list(props.index),format_func=lambda i:f"{LABELS.get(props.loc[i,'market'],props.loc[i,'market'])} / {props.loc[i,'line']} / {props.loc[i,'odds_type']}")
     row=props.loc[choice]
+    if row.market in ('targets','rush_att','rec_yds','receptions','rush_yds'):
+        from workload_ui import render_workload
+        render_workload(row,int(season),int(week),fetched,database_url())
     line=st.number_input('What-if line',min_value=0.,value=float(row.line),step=.5,key=f'whatif_{player}_{row.market}_{row.line}')
     st.caption('Changing this line is hypothetical. It does not create an offer in PrizePicks.')
     with st.spinner('Loading play-level history...'):
@@ -200,6 +207,6 @@ def main():
             if result:
                 st.caption(f"Historical average {result['baseline']:.1f}. These are recorded outcomes, not probabilities.")
                 for _,h in history(games,row.market,line,n).iterrows(): st.write(f"{int(h.season)} W{int(h.week)}: {h.value:g} / {h.result}")
-    st.caption('Performance: Insufficient verified historical data. Calibration, confidence score and model agreement are not available.')
+    st.caption('See Results for workload-model evaluation. Betting probability calibration and model agreement are not yet available.')
 
 if __name__=='__main__': main()

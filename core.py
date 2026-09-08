@@ -6,7 +6,7 @@ import pandas as pd
 MARKETS = {
     'pass_yds': ('passing_yards',), 'rush_yds': ('rushing_yards',),
     'rec_yds': ('receiving_yards',), 'receptions': ('receptions',),
-    'rush_att': ('carries',), 'pass_td': ('passing_tds',),
+    'targets': ('targets',), 'rush_att': ('carries',), 'pass_td': ('passing_tds',),
     'pass_rush_yds': ('passing_yards', 'rushing_yards'),
     'rush_rec_yds': ('rushing_yards', 'receiving_yards'),
 }
@@ -14,6 +14,7 @@ ALIASES = {
     'passingyards': 'pass_yds', 'passyards': 'pass_yds', 'passyds': 'pass_yds',
     'rushingyards': 'rush_yds', 'rushyards': 'rush_yds', 'rushyds': 'rush_yds',
     'receivingyards': 'rec_yds', 'recyards': 'rec_yds', 'recyds': 'rec_yds',
+    'rectargets': 'targets', 'receivingtargets': 'targets', 'targets': 'targets',
     'receptions': 'receptions', 'rushattempts': 'rush_att', 'rushingattempts': 'rush_att',
     'passtd': 'pass_td', 'passtds': 'pass_td', 'passingtds': 'pass_td',
     'passrushyds': 'pass_rush_yds', 'passrushyards': 'pass_rush_yds',
