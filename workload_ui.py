@@ -77,7 +77,11 @@ def render_results(url):
   try:
    records=load(url)
   except Exception:
-   st.error('Could not load the ledger. No results are shown.');records=[]
+   st.error('Could not load the ledger. The database may need its setup SQL applied.')
+   from tracking import SCHEMA
+   st.download_button('Download database setup SQL',SCHEMA,'supabase_setup.sql','text/plain',use_container_width=True)
+   st.caption('Run this file in Supabase SQL Editor, then reboot the Streamlit app and test the connection again.')
+   records=[]
   if st.button('Refresh official results'):
    try:
     import nflreadpy as nfl
