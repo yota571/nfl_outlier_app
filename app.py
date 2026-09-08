@@ -8,7 +8,7 @@ import pandas as pd
 import streamlit as st
 from core import parse_board, summarize, history
 from verification import attach_games, resolve_player, allowed_sides
-from sources import foundation, board_source, play_history, stamp
+from sources import foundation, board_source, play_history, stamp, depth_source, snap_source
 from research import simulate, distribution, VERSION
 
 st.set_page_config(page_title='NFL Prop Intelligence',page_icon='🏈',layout='centered')
@@ -37,11 +37,11 @@ def database_url():
 
 def esc(x): return html.escape(str(x or ''))
 
-@st.cache_data(ttl=86400,show_spinner=False)
+@st.cache_data(ttl=86400,max_entries=24,show_spinner=False)
 def cached_sim(pbp,player_id,market,season,week):
     return simulate(pbp,player_id,market,season,week)
 
-@st.cache_data(ttl=180,show_spinner=False)
+@st.cache_data(ttl=180,max_entries=4,show_spinner=False)
 def verified_players(board,rosters,raw_by_id):
     issues=[]
     verified=[]
@@ -66,7 +66,7 @@ def main():
         timezone=st.selectbox('Timezone',['America/Chicago','America/New_York','America/Denver','America/Los_Angeles','UTC'])
         upload=st.file_uploader('Optional board JSON',type=['json'])
         if st.button('Refresh sources',use_container_width=True):
-            board_source.clear(); foundation.clear(); play_history.clear(); cached_sim.clear()
+            board_source.clear(); foundation.clear(); play_history.clear(); depth_source.clear(); snap_source.clear(); cached_sim.clear()
     nav=st.radio('Navigate',['Props','Player','Research','Health'],horizontal=True,label_visibility='collapsed')
     health=[]
     with st.spinner('Checking live board and player identities...'):
@@ -78,7 +78,7 @@ def main():
         except Exception as exc:
             board=pd.DataFrame(); skips={}; fetched=stamp()
             health.append(dict(source='PrizePicks',status='Unavailable',checked_at=fetched,error=str(exc)))
-        data,source_health=foundation(int(season),int(week)); health.extend(source_health)
+        data,source_health=foundation(int(season),int(week),include_history=nav in ('Player','Research'),include_usage=nav=='Player'); health.extend(source_health)
     issues=[]
     if not board.empty:
         board,issues=attach_games(board,data['schedule'],season,week)
