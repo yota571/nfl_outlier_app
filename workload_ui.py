@@ -87,7 +87,7 @@ def render_results(url):
     import nflreadpy as nfl
     seasons=sorted({int(r['game_id'].split('_')[0]) for r in records if r['actual'] is None})
     if not seasons:
-     st.info('No pending forecasts to settle.');return
+     st.info('No pending forecasts are ready to settle yet. Saved forecasts remain listed below.')
     stats=nfl.load_player_stats(seasons).to_pandas();schedule=nfl.load_schedules(seasons).to_pandas()
     n=settle(url,stats,schedule);st.success(f'{n} results added. Refresh this page to view them.')
    except Exception:st.warning('Results could not be refreshed. Existing predictions are preserved.')
