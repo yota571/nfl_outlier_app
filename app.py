@@ -108,12 +108,13 @@ def main():
         return
     if board.empty:
         st.info('No verified props available for this slate. Check Health for source or mapping issues.'); return
-    if database_url():
+    if database_url() and not upload:
         try:
             from storage import save_board_snapshot
-            save_board_snapshot(database_url(), board, fetched)
+            saved_count=save_board_snapshot(database_url(), board, fetched, data['stats'])
+            st.caption(f'Board tracking connected / {saved_count} new observations saved. Collection runs when the board loads.')
         except Exception:
-            pass
+            st.warning('Board tracking failed. These lines were not confirmed saved. Check Results and database connectivity.')
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
     if nav=='Props':
         st.markdown('### NFL board')

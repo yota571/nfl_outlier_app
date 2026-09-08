@@ -62,6 +62,8 @@ def render_workload(row,season,week,board_time,url):
 def render_results(url):
  _,report=assets()
  st.subheader('Prediction tracking')
+ if url:
+  render_board_results(url)
  if not url:
   st.info('Permanent tracking is ready to connect. No database is connected and no saved results are being claimed.')
   st.markdown('[Create your Supabase project](https://supabase.com/dashboard)')
@@ -88,8 +90,10 @@ def render_results(url):
     seasons=sorted({int(r['game_id'].split('_')[0]) for r in records if r['actual'] is None})
     if not seasons:
      st.info('No pending forecasts are ready to settle yet. Saved forecasts remain listed below.')
-    stats=nfl.load_player_stats(seasons).to_pandas();schedule=nfl.load_schedules(seasons).to_pandas()
-    n=settle(url,stats,schedule);st.success(f'{n} results added. Refresh this page to view them.')
+    else:
+     stats=nfl.load_player_stats(seasons).to_pandas();schedule=nfl.load_schedules(seasons).to_pandas()
+     n=settle(url,stats,schedule);st.success(f'{n} results added.')
+     records=load(url)
    except Exception:st.warning('Results could not be refreshed. Existing predictions are preserved.')
   st.write(f'{len(records)} saved forecasts')
   complete=[r for r in records if r['actual'] is not None]
@@ -111,3 +115,35 @@ def render_results(url):
     st.caption(f"Saved {r['created_at']} / {r['model_version']}")
  with st.expander('Historical workload-model evaluation'):
   validation_view(report)
+
+
+def render_board_results(url):
+ with st.expander('All props / automatic board history',expanded=True):
+  from storage import board_records,settle_board
+  try:
+   rows=board_records(url)
+   st.write(f'{len(rows)} recorded line observations')
+   st.caption('Collection runs when the live board loads. Repeat loads of the same fetched board are deduplicated. New source snapshots preserve line movement. Uploaded boards are excluded.')
+   if st.button('Update all-prop outcomes'):
+    import nflreadpy as nfl
+    from core import prepare_stats
+    seasons=sorted({int(r['game_id'].split('_')[0]) for r in rows if r['actual'] is None})
+    if seasons:
+     n=settle_board(url,prepare_stats(nfl.load_player_stats(seasons).to_pandas()),nfl.load_schedules(seasons).to_pandas())
+     st.success(f'{n} outcomes added. Missing stats stay pending; games must be at least 36 hours past kickoff.')
+     rows=board_records(url)
+    else: st.info('No pending board observations.')
+   if rows:
+    view=pd.DataFrame([{'Player':r['player'],'Market':r['market'],'Line':r['line'],'Observed':r['board_fetched_at'],'Actual':r['actual'],'Status':'Pending' if r['actual'] is None else 'MORE' if r['actual']>r['line'] else 'LESS' if r['actual']<r['line'] else 'Push'} for r in rows])
+    st.dataframe(view.head(200),hide_index=True,use_container_width=True)
+    st.download_button('Export all-prop history',view.to_csv(index=False),'board_history.csv','text/csv')
+    unique={}
+    for r in sorted(rows,key=lambda x:x['board_fetched_at']):
+     if r['actual'] is not None and r.get('baseline'): unique.setdefault((r['game_id'],r['player_id'],r['market']),r)
+    if unique:
+     metrics=pd.DataFrame([{'market':r['market'],'absolute_error':abs(r['baseline']['mean']-r['actual']),'brier':(r['baseline']['more']-float(r['actual']>r['line']))**2} for r in unique.values()])
+     st.write('Historical baseline evaluation / earliest observation per player, game and market')
+     st.dataframe(metrics.groupby('market').agg(games=('absolute_error','size'),MAE=('absolute_error','mean'),Brier=('brier','mean')))
+   st.caption('Personal workload forecasts are listed below. Historical baseline probabilities are uncalibrated; collection does not automatically retrain a model.')
+  except Exception:
+   st.error('Automatic board history is unavailable. Check database access; no successful tracking is claimed.')

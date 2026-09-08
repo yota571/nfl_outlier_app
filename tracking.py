@@ -62,7 +62,7 @@ def save(url,payload):
 
 def load(url):
  with connect(url) as conn:
-  rows=conn.execute('SELECT p.prediction_id,p.payload,o.actual FROM public.nfl_predictions p LEFT JOIN public.nfl_outcomes o USING(prediction_id) ORDER BY p.created_at DESC LIMIT 1000').fetchall()
+  rows=conn.execute('SELECT p.prediction_id,p.payload,o.actual FROM public.nfl_predictions p LEFT JOIN public.nfl_outcomes o USING(prediction_id) ORDER BY p.created_at DESC').fetchall()
  return [dict(prediction_id=r[0],**r[1],actual=r[2]) for r in rows]
 
 def settle(url,stats,schedule,now=None):
@@ -74,7 +74,8 @@ def settle(url,stats,schedule,now=None):
   if (now-datetime.fromisoformat(row['kickoff'])).total_seconds()<36*3600: continue
   g=schedule[schedule.game_id.eq(row['game_id'])]
   if g.empty or g[['home_score','away_score']].isna().any(axis=None): continue
-  s=stats[stats.game_id.eq(row['game_id']) & stats.player_id.eq(row['player_id'])]
+  game=g.iloc[0]
+  s=stats[stats.season.eq(game.season) & stats.week.eq(game.week) & stats.season_type.eq('REG') & stats.player_id.eq(row['player_id'])]
   col='targets' if row['market']=='targets' else 'carries'
   if len(s)!=1 or col not in s:continue
   actual=float(s.iloc[0][col])
