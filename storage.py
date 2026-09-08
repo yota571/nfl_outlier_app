@@ -21,7 +21,8 @@ def snapshot_record(payload, kickoff, now=None):
         raise ValueError('Hypothetical lines cannot be saved as offered pregame predictions')
     body={**payload,'created_at':now.isoformat(),'kickoff':kickoff.isoformat()}
     encoded=json.dumps(body,sort_keys=True,allow_nan=False)
-    return hashlib.sha256(json.dumps({k:v for k,v in body.items() if k != 'created_at'},sort_keys=True,allow_nan=False).encode()).hexdigest(),now,kickoff,body['model_version'],encoded
+    stable={k:v for k,v in body.items() if k not in ('created_at','board_fetched_at')}
+    return hashlib.sha256(json.dumps(stable,sort_keys=True,allow_nan=False).encode()).hexdigest(),now,kickoff,body['model_version'],encoded
 
 def save_snapshot(database_url,payload,kickoff):
     import psycopg
@@ -32,7 +33,7 @@ def save_snapshot(database_url,payload,kickoff):
             cur.execute('INSERT INTO nfl_research_snapshots (snapshot_id,created_at,kickoff,model_version,payload) VALUES (%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING',values)
     return values[0]
 
-def save_board_snapshot(database_url, board, fetched_at, stats=None):
+def save_board_snapshot(database_url, board, fetched_at, stats=None, model_table=None, season=None, week=None):
     from tracking import connect
     from core import market_series
     now=datetime.now(timezone.utc)
@@ -49,7 +50,15 @@ def save_board_snapshot(database_url, board, fetched_at, stats=None):
             history=market_series(games,r.market).dropna().head(10)
             if len(history)>=5:
                 baseline={'mean':float(history.mean()),'more':float((history>r.line).mean()),'less':float((history<r.line).mean()),'push':float((history==r.line).mean()),'games':len(history),'version':'historical-last10-v1','status':'Uncalibrated historical baseline'}
-        payload={'player':r.player,'player_id':r.player_id,'game_id':r.game_id,'market':r.market,'projection_id':str(r.projection_id),'line':float(r.line),'odds_type':r.odds_type,'sides':sorted(r.sides),'board_fetched_at':str(fetched_at),'hypothetical':False,'model_status':'Board observation; no validated recommendation','model_version':'board-v2','baseline':baseline}
+        model=None
+        if model_table is not None and season is not None and week is not None and r.market in ('targets','rush_att'):
+            from opportunity import forecast,sample_counts,VERSION
+            kind='targets' if r.market=='targets' else 'carries'
+            pred=forecast(model_table,r.player_id,r.team,kind,season,week)
+            if pred:
+                samples,_=sample_counts(pred,f'{r.player_id}|{r.game_id}|{kind}')
+                model={'mean':float(pred['mean']),'more':float((samples>r.line).mean()),'less':float((samples<r.line).mean()),'push':float((samples==r.line).mean()),'version':VERSION,'status':'Uncalibrated probabilities'}
+        payload={'player':r.player,'player_id':r.player_id,'game_id':r.game_id,'market':r.market,'projection_id':str(r.projection_id),'line':float(r.line),'odds_type':r.odds_type,'sides':sorted(r.sides),'board_fetched_at':str(fetched_at),'hypothetical':False,'model_status':'Board observation; no validated recommendation','model_version':'board-v3','baseline':baseline,'baselines':{'last10':baseline} if baseline else {},'model':model}
         values.append(snapshot_record(payload,kickoff,now))
     inserted=0
     with connect(database_url) as conn:

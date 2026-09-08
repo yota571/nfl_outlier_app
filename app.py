@@ -111,7 +111,9 @@ def main():
     if database_url() and not upload:
         try:
             from storage import save_board_snapshot
-            saved_count=save_board_snapshot(database_url(), board, fetched, data['stats'])
+            from workload_ui import assets
+            model_table,_=assets()
+            saved_count=save_board_snapshot(database_url(), board, fetched, data['stats'],model_table,int(season),int(week))
             st.caption(f'Board tracking connected / {saved_count} new observations saved. Collection runs when the board loads.')
         except Exception:
             st.warning('Board tracking failed. These lines were not confirmed saved. Check Results and database connectivity.')

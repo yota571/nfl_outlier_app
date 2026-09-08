@@ -9,5 +9,5 @@ class TrackingRegression(unittest.TestCase):
   b=snapshot_record(p,now+timedelta(days=1),now+timedelta(seconds=5))
   self.assertEqual(a[0],b[0])
   self.assertNotEqual(a[0],snapshot_record({**p,'line':11},now+timedelta(days=1),now)[0])
-  self.assertNotEqual(a[0],snapshot_record({**p,'board_fetched_at':(now+timedelta(minutes=3)).isoformat()},now+timedelta(days=1),now)[0])
+  self.assertEqual(a[0],snapshot_record({**p,'board_fetched_at':(now+timedelta(minutes=3)).isoformat()},now+timedelta(days=1),now)[0])
 if __name__=='__main__':unittest.main()

@@ -141,9 +141,20 @@ def render_board_results(url):
     for r in sorted(rows,key=lambda x:x['board_fetched_at']):
      if r['actual'] is not None and r.get('baseline'): unique.setdefault((r['game_id'],r['player_id'],r['market']),r)
     if unique:
-     metrics=pd.DataFrame([{'market':r['market'],'absolute_error':abs(r['baseline']['mean']-r['actual']),'brier':(r['baseline']['more']-float(r['actual']>r['line']))**2} for r in unique.values()])
-     st.write('Historical baseline evaluation / earliest observation per player, game and market')
-     st.dataframe(metrics.groupby('market').agg(games=('absolute_error','size'),MAE=('absolute_error','mean'),Brier=('brier','mean')))
+     comparisons=[]
+     for r in unique.values():
+      candidates=dict(r.get('baselines') or {})
+      if r.get('baseline') and 'last10' not in candidates: candidates['last10']=r['baseline']
+      if r.get('model'): candidates['workload_model']=r['model']
+      for name,pred in candidates.items():
+       if pred and 'mean' in pred and 'more' in pred:
+        comparisons.append({'Market':r['market'],'Method':name,'Absolute error':abs(pred['mean']-r['actual']),'Brier':(pred['more']-float(r['actual']>r['line']))**2})
+     if comparisons:
+      metrics=pd.DataFrame(comparisons)
+      leaderboard=metrics.groupby(['Market','Method']).agg(Games=('Absolute error','size'),MAE=('Absolute error','mean'),Brier=('Brier','mean')).reset_index().sort_values(['Market','MAE'])
+      st.write('Model leaderboard / earliest observation per player, game and market')
+      st.dataframe(leaderboard,hide_index=True,use_container_width=True)
+      st.caption('MAE and Brier are computed only from completed, pregame observations. Lower is better. Methods may cover different player sets, so compare rows with similar sample sizes.')
    st.caption('Personal workload forecasts are listed below. Historical baseline probabilities are uncalibrated; collection does not automatically retrain a model.')
   except Exception:
    st.error('Automatic board history is unavailable. Check database access; no successful tracking is claimed.')
