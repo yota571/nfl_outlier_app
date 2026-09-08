@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 import streamlit as st
-from core import parse_board, summarize, history
+from core import parse_board, summarize, history, historical_lean
 from verification import attach_games, resolve_player, allowed_sides
 from sources import foundation, board_source, play_history, stamp, depth_source, snap_source
 from research import simulate, distribution, VERSION
@@ -78,7 +78,7 @@ def main():
         except Exception as exc:
             board=pd.DataFrame(); skips={}; fetched=stamp()
             health.append(dict(source='PrizePicks',status='Unavailable',checked_at=fetched,error=str(exc)))
-        data,source_health=foundation(int(season),int(week),include_history=nav in ('Player','Research'),include_usage=nav=='Player'); health.extend(source_health)
+        data,source_health=foundation(int(season),int(week),include_history=nav in ('Props','Player','Research'),include_usage=nav=='Player'); health.extend(source_health)
     issues=[]
     if not board.empty:
         board,issues=attach_games(board,data['schedule'],season,week)
@@ -107,7 +107,7 @@ def main():
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
     if nav=='Props':
         st.markdown('### NFL board')
-        st.caption('No calibrated picks yet. Browse verified lines; open Research for experimental distributions. Mobile account availability remains unverified.')
+        st.caption('Cards show a historical MORE/LESS lean, not a validated prediction. Research contains experimental simulations. Confirm the exact line in PrizePicks.')
         search=st.text_input('Find a player',placeholder='Search player name')
         with st.expander('Filter position, market & line type'):
             position=st.selectbox('Position',['All']+sorted(board.position.dropna().unique()))
@@ -123,8 +123,11 @@ def main():
         page=min(st.session_state.get('board_page',1),pages)
         if view.empty: st.info('No lines match these filters.')
         for _,r in view.iloc[(page-1)*12:page*12].iterrows():
+            stats=data['stats']
+            games=stats[stats.player_id.eq(r.player_id)] if not stats.empty else pd.DataFrame()
+            lean,lean_detail=historical_lean(games,r.market,r.line,n,r.sides)
             side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Side availability unknown'
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)}</div><div class="badge">PASS / Validation incomplete</div></div>''',unsafe_allow_html=True)
+            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)}</div><div class="badge">{esc(lean)}</div><div class="muted">{esc(lean_detail)}</div><div class="muted">Model recommendation: not validated</div></div>''',unsafe_allow_html=True)
         st.number_input('Page',1,pages,page,key='board_page')
         st.caption(f'{len(view)} matching lines. Sorted by kickoff and player, not historical hit rate.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'

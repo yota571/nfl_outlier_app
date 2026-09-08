@@ -117,3 +117,18 @@ def history(games, market, line, n):
     result['value'] = values
     result['result'] = values.map(lambda v: 'Over' if v > line else 'Under' if v < line else 'Push')
     return result
+
+
+def historical_lean(games, market, line, n, sides):
+    result = summarize(games, market, line, n)
+    if result is None:
+        return 'NO HISTORY', 'No matched historical sample'
+    detail = f"Average {result['baseline']:.1f} / {result['games']} recorded games"
+    if result['games'] < 5:
+        return 'INSUFFICIENT HISTORY', detail
+    side = {'Over': 'over', 'Under': 'under'}.get(result['side'])
+    if side is None:
+        return 'NO HISTORICAL LEAN', detail
+    if side not in sides:
+        return 'PASS / Lean side unavailable', detail
+    return 'Historical lean: ' + ('MORE / OVER' if side == 'over' else 'LESS / UNDER'), detail
