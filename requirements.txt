@@ -3,3 +3,5 @@ streamlit==1.50.0
 nflreadpy==0.1.5
 api-dfs-wrapper==1.1.10
 tzdata==2025.2
+numpy>=2.1,<3
+psycopg[binary]>=3.2,<4

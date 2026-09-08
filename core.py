@@ -93,8 +93,8 @@ def parse_board(raw, now=None):
         start = pd.to_datetime(item.get('start_time') or item.get('game_date_time'), utc=True, errors='coerce')
         if pd.isna(start) or start <= now:
             skip('Missing kickoff or game already started'); continue
-        records.append(dict(player=name.strip(), team=str(item.get('team') or ''), opponent=str(item.get('opponent') or ''), market=market, line=line, game_time=start, odds_type=str(item.get('odds_type') or 'unknown'), book='PrizePicks'))
-    cols = ['player', 'team', 'opponent', 'market', 'line', 'game_time', 'odds_type', 'book']
+        records.append(dict(projection_id=str(item.get('projection_id') or ''), player=name.strip(), team=str(item.get('team') or ''), opponent=str(item.get('opponent') or ''), market=market, line=line, game_time=start, odds_type=str(item.get('odds_type') or 'unknown'), book='PrizePicks'))
+    cols = ['projection_id', 'player', 'team', 'opponent', 'market', 'line', 'game_time', 'odds_type', 'book']
     return pd.DataFrame(records, columns=cols).drop_duplicates().reset_index(drop=True), skipped
 
 def summarize(games, market, line, n, odds_type="standard"):

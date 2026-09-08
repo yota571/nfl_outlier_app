@@ -1,183 +1,202 @@
+import html
+import os
 import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
+import numpy as np
 import pandas as pd
 import streamlit as st
-from core import prepare_stats, player_games, parse_board, summarize, history
+from core import parse_board, summarize, history
+from verification import attach_games, resolve_player, allowed_sides
+from sources import foundation, board_source, play_history, stamp
+from research import simulate, distribution, VERSION
 
-st.set_page_config(page_title='NFL Prop Explorer', layout='wide')
-st.markdown("""
-<style>
-@media (max-width: 640px) {
-    .block-container { padding: 1rem 0.8rem 3rem; }
-    h1 { font-size: 1.8rem !important; }
-    h3 { font-size: 1.2rem !important; overflow-wrap: anywhere; }
-    button { min-height: 44px; }
-    [data-baseweb="tab-list"] { gap: 0.6rem; overflow-x: auto; }
-}
-</style>
-""", unsafe_allow_html=True)
+st.set_page_config(page_title='NFL Prop Intelligence',page_icon='🏈',layout='centered')
+st.markdown('''<style>
+.stApp {background:#0b1018;color:#ecf2fa}
+.block-container {max-width:850px;padding-top:1.2rem;padding-bottom:5rem}
+h1 {font-size:2rem!important;letter-spacing:-.06rem} h3 {font-size:1.1rem!important}
+header[data-testid="stHeader"] {background:#0b1018}
+.card {background:#141e2c;border:1px solid #26364b;border-radius:18px;padding:18px;margin:12px 0}
+.eyebrow {font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#77dac6;font-weight:700}
+.player {font-size:22px;font-weight:750;line-height:1.25;margin:8px 0}
+.muted {color:#9babc0;font-size:13px;line-height:1.6}
+.line {font-size:32px;font-weight:750;color:#f5f8fc;margin-top:8px}
+.badge {color:#e8c78a;font-size:12px;font-weight:650;margin-top:8px}
+button {min-height:44px} [data-testid="stRadio"] {background:#101925;border-radius:12px;padding:8px}
+[data-testid="stRadio"] {position:fixed;bottom:0;left:0;right:0;max-width:820px;margin:auto;z-index:999;border:1px solid #26364b;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+[data-testid="stRadio"] label p {font-size:13px}
+@media(max-width:640px){.block-container{padding:1rem .8rem 5rem} h1{font-size:1.65rem!important}.player{font-size:20px}.card{padding:15px} [data-testid="stRadio"] div[role="radiogroup"] {gap:6px} .stApp {overflow-x:hidden}}
+</style>''',unsafe_allow_html=True)
+LABELS={'pass_yds':'Passing yards','rush_yds':'Rushing yards','rec_yds':'Receiving yards','receptions':'Receptions','rush_att':'Rush attempts','pass_td':'Passing touchdowns','rush_rec_yds':'Rush + receiving yards','pass_rush_yds':'Pass + rushing yards'}
+def database_url():
+    url=os.environ.get('DATABASE_URL')
+    if url: return url
+    try: return st.secrets.get('DATABASE_URL')
+    except (FileNotFoundError, st.errors.StreamlitSecretNotFoundError): return None
 
+def esc(x): return html.escape(str(x or ''))
 
-@st.cache_data(ttl=300, show_spinner='Loading PrizePicks board...')
-def live_board():
-    from DFS_Wrapper import PrizePick
-    provider = PrizePick()
-    rows = provider.get_data(organize_data=False)
-    originals = {p['id']: p.get('attributes', {}) for p in provider.api_data.get('data', [])}
-    for row in rows:
-        attrs = originals.get(row.get('projection_id'), {})
-        for key in ['event_type', 'game_id', 'description']:
-            row[key] = attrs.get(key)
-        row['event_metadata_checked'] = True
-    return rows, pd.Timestamp.now(tz='UTC')
+@st.cache_data(ttl=86400,show_spinner=False)
+def cached_sim(pbp,player_id,market,season,week):
+    return simulate(pbp,player_id,market,season,week)
 
-@st.cache_data(ttl=3600, show_spinner='Loading NFL game history...')
-def load_stats(season, week=1):
-    import nflreadpy as nfl
-    frames, warnings = [], []
-    # Load independently: an unpublished Week 1 season must not discard prior history.
-    years = [season - 2, season - 1] + ([season] if week > 1 else [])
-    for year in years:
-        try:
-            frame = pd.DataFrame(nfl.load_player_stats(seasons=year, summary_level='week').to_dicts())
-            if not frame.empty:
-                frames.append(frame)
-            else:
-                warnings.append(f'{year}: no stats published yet.')
-        except Exception as exc:
-            warnings.append(f'{year}: stats unavailable ({type(exc).__name__}: {exc}).')
-    if not frames:
-        raise RuntimeError('No season history could be loaded. Check internet access and nflreadpy.')
-    return prepare_stats(pd.concat(frames, ignore_index=True)), warnings
-
-@st.cache_data(ttl=3600, show_spinner='Loading season schedule...')
-def load_schedule(season):
-    import nflreadpy as nfl
-    return pd.DataFrame(nfl.load_schedules(seasons=season).to_dicts())
+@st.cache_data(ttl=180,show_spinner=False)
+def verified_players(board,rosters,raw_by_id):
+    issues=[]
+    verified=[]
+    for row in board.to_dict('records'):
+        identity,reason=resolve_player(row,rosters)
+        if reason: issues.append(f"{row['player']}: {reason}"); continue
+        row.update(player_id=identity['gsis_id'],position=identity['position'],headshot_url=identity.get('headshot_url'),pfr_id=identity.get('pfr_id'),roster_status=identity.get('status'),team_verified=True)
+        original=raw_by_id.get(str(row.get('projection_id')), {})
+        row['sides']=allowed_sides(row['odds_type'],original.get('allowed_wager_types'))
+        verified.append(row)
+    return pd.DataFrame(verified),issues
 
 def main():
-    st.title('NFL Prop Explorer')
-    st.caption('PrizePicks full-game lines compared with regular-season NFL game history.')
-    st.info('General feed only: availability on your signed-in PrizePicks mobile board is unverified. A listed projection may not be selectable for you. Match the player, opponent, game date and line in mobile before using it.')
-    today = datetime.now(ZoneInfo('America/Chicago'))
-    season = st.sidebar.number_input('Season', min_value=2000, max_value=today.year + 1, value=today.year if today.month >= 3 else today.year - 1)
-    week = st.sidebar.number_input('Week', min_value=1, max_value=18, value=1)
-    n = st.sidebar.slider('Games to look back', 5, 25, 10)
-    min_games = st.sidebar.slider('Minimum recorded games', 1, 25, 5)
-    side_filter = st.sidebar.selectbox('Side', ['All', 'Over', 'Under'])
-    hit_min = st.sidebar.slider('Minimum historical side hit rate', 0., 1., .6, .05)
-    timezone = st.sidebar.selectbox('Display timezone', ['America/Chicago', 'America/New_York', 'America/Denver', 'America/Los_Angeles', 'UTC'])
-    only_today = st.sidebar.checkbox("Only today's games")
-    if st.sidebar.button('Refresh live data'):
-        live_board.clear()
-        load_stats.clear()
-        load_schedule.clear()
-    upload = st.sidebar.file_uploader('Optional PrizePicks board JSON', type=['json'])
-    st.sidebar.caption('Upload the unorganized list returned by DFS_Wrapper if the live feed is unavailable.')
-    st.info('Week 1 uses prior-season history. Rookies without NFL history remain visible without an estimate. A historical average is not a forecast or a win probability; team changes and injuries are not modeled.')
-    try:
-        if upload:
-            raw = json.load(upload)
-            fetched = None
-        else:
-            raw, fetched = live_board()
-        board, skips = parse_board(raw)
-    except Exception as exc:
-        st.error(f'Board unavailable: {exc}')
-        st.info('Use the JSON upload to continue with an exported board. No sample lines are substituted.')
+    st.markdown('<div class="eyebrow">NFL / WEEKLY RESEARCH</div>',unsafe_allow_html=True)
+    st.title('NFL Prop Intelligence')
+    st.caption('Verified matchups. Real opportunity data. Evidence before confidence.')
+    now=datetime.now(ZoneInfo('America/Chicago'))
+    with st.expander('Slate & settings'):
+        season=st.number_input('Season',2000,now.year+1,now.year if now.month>=3 else now.year-1)
+        week=st.number_input('Week',1,18,1)
+        n=st.slider('Historical games',5,25,10)
+        timezone=st.selectbox('Timezone',['America/Chicago','America/New_York','America/Denver','America/Los_Angeles','UTC'])
+        upload=st.file_uploader('Optional board JSON',type=['json'])
+        if st.button('Refresh sources',use_container_width=True):
+            board_source.clear(); foundation.clear(); play_history.clear(); cached_sim.clear()
+    nav=st.radio('Navigate',['Props','Player','Research','Health'],horizontal=True,label_visibility='collapsed')
+    health=[]
+    with st.spinner('Checking live board and player identities...'):
+        try:
+            if upload: raw=json.load(upload); fetched=stamp(); origin='Uploaded board'
+            else: raw,fetched=board_source(); origin='PrizePicks'
+            board,skips=parse_board(raw)
+            health.append(dict(source=origin,status='Available',checked_at=fetched,rows=len(board)))
+        except Exception as exc:
+            board=pd.DataFrame(); skips={}; fetched=stamp()
+            health.append(dict(source='PrizePicks',status='Unavailable',checked_at=fetched,error=str(exc)))
+        data,source_health=foundation(int(season),int(week)); health.extend(source_health)
+    issues=[]
+    if not board.empty:
+        board,issues=attach_games(board,data['schedule'],season,week)
+    raw_by_id={str(x.get('projection_id')):x for x in raw if isinstance(x,dict) and x.get('projection_id')} if not board.empty else {}
+    board,identity_issues=verified_players(board,data['rosters'],raw_by_id)
+    issues.extend(identity_issues)
+    if nav=='Health':
+        st.subheader('System health')
+        for status in health:
+            with st.expander(f"{status['source']} / {status['status']}"):
+                st.write(f"Checked: {status.get('checked_at','Unknown')}")
+                st.write(f"Rows: {status.get('rows',0)}")
+                if status.get('error'): st.error(status['error'])
+        st.warning('Current injury reports, live routes, weather forecasts and sportsbook prices are not connected. No calibrated recommendations are enabled.')
+        st.caption('Roster status is not a practice report or confirmation of game-day availability. Depth charts are timestamped observations, not guaranteed starters.')
+        st.write('Database: configured; connection is tested when saving.' if database_url() else 'Database: not connected. Durable prediction history is not enabled.')
+        st.write(f'Model: {VERSION} / calibration: unavailable / agreement: not evaluated')
+        st.write(f'Verified props: {len(board)} / rejected mappings and games: {len(issues)}')
+        with st.expander('Import details'):
+            st.write(skips)
+            for issue in issues[:100]: st.caption(issue)
+        st.markdown('[nflverse source and availability](https://nflreadr.nflverse.com/articles/nflverse_data_schedule.html)')
         return
-    if fetched is not None:
-        st.caption(f'Board fetched: {fetched.tz_convert(timezone):%Y-%m-%d %H:%M %Z}. Cached for up to 5 minutes; started games are removed on every rerun.')
-    with st.expander('Board import diagnostics'):
-        st.write(skips)
-        st.caption('Fantasy Score is excluded until PrizePicks scoring is explicitly implemented and verified. Alternate lines retain their odds type.')
     if board.empty:
-        st.warning('No supported upcoming NFL props were returned.')
+        st.info('No verified props available for this slate. Check Health for source or mapping issues.'); return
+    st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
+    if nav=='Props':
+        st.markdown('### NFL board')
+        st.caption('No calibrated picks yet. Browse verified lines; open Research for experimental distributions. Mobile account availability remains unverified.')
+        search=st.text_input('Find a player',placeholder='Search player name')
+        with st.expander('Filter position, market & line type'):
+            position=st.selectbox('Position',['All']+sorted(board.position.dropna().unique()))
+            market=st.selectbox('Market',['All']+sorted(board.market.unique()),format_func=lambda m:LABELS.get(m,m))
+            line_type=st.selectbox('Line type',['Standard','All','Demon','Goblin'])
+        view=board.copy()
+        if search: view=view[view.player.str.contains(search,case=False,regex=False)]
+        if position!='All': view=view[view.position.eq(position)]
+        if market!='All': view=view[view.market.eq(market)]
+        if line_type!='All': view=view[view.odds_type.str.lower().eq(line_type.lower())]
+        view=view.sort_values(['game_time','player','market','line'])
+        pages=max(1,(len(view)+11)//12)
+        page=min(st.session_state.get('board_page',1),pages)
+        if view.empty: st.info('No lines match these filters.')
+        for _,r in view.iloc[(page-1)*12:page*12].iterrows():
+            side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Side availability unknown'
+            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)}</div><div class="badge">PASS / Validation incomplete</div></div>''',unsafe_allow_html=True)
+        st.number_input('Page',1,pages,page,key='board_page')
+        st.caption(f'{len(view)} matching lines. Sorted by kickoff and player, not historical hit rate.')
+        export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
+        st.download_button('Export verified board',export.to_csv(index=False),'verified_nfl_board.csv','text/csv',use_container_width=True)
         return
-    try:
-        stats, warnings = load_stats(int(season), int(week))
-    except Exception as exc:
-        st.error(str(exc)); return
-    for warning in warnings:
-        st.warning('Some season history could not be loaded. Results use the available games.')
-        with st.expander('Download details'):
-            st.caption(warning)
-    if week == 1:
-        st.caption(f'Using prior-season history for {int(season)} Week 1. Current-season stats are not needed yet.')
-    # No games from the target week or later may enter a historical comparison.
-    stats = stats[(stats.season < season) | ((stats.season == season) & (stats.week < week))]
-    try:
-        schedule = load_schedule(int(season))
-        selected = schedule[(schedule['game_type'] == 'REG') & (schedule['week'] == week)]
-        dates = set(pd.to_datetime(selected['gameday']).dt.date)
-        board = board[board.game_time.dt.tz_convert('America/New_York').dt.date.isin(dates)]
-    except Exception as exc:
-        st.warning(f'Week schedule unavailable ({exc}). Upcoming games are shown; verify kickoff dates manually.')
-    local_times = board.game_time.dt.tz_convert(timezone)
-    if only_today:
-        board = board[local_times.dt.date == datetime.now(ZoneInfo(timezone)).date()]
-    st.caption(f'History cutoff: before {int(season)} Week {int(week)}. Board contains upcoming games; verify kickoff for the desired week.')
-    a, b, c = st.columns(3)
-    team = a.selectbox('Team', ['All'] + sorted(board.team.unique()))
-    market = b.selectbox('Market', ['All'] + sorted(board.market.unique()))
-    search = c.text_input('Search player')
-    if team != 'All': board = board[board.team.eq(team)]
-    if market != 'All': board = board[board.market.eq(market)]
-    if search: board = board[board.player.str.contains(search, case=False, regex=False)]
-    rows = []
-    for record in board.to_dict('records'):
-        games = player_games(stats, record['player'])
-        result = summarize(games, record['market'], record['line'], n, record['odds_type'])
-        record.update(result or dict(side='No history', games=0, side_hit_rate=0.))
-        rows.append(record)
-    if not rows:
-        st.info('No props match the selected filters.'); return
-    data = pd.DataFrame(rows)
-    cards, table, detail, whatif = st.tabs(['Cards & Explanation', 'Table', 'Player Detail', 'What-If Line Tester'])
-    with table:
-        st.dataframe(data, hide_index=True)
-        st.download_button('Download results', data.to_csv(index=False), 'nfl-props.csv', 'text/csv')
-    with cards:
-        st.caption('Demons and Goblins are treated as More-only. If history points below the line, the app passes instead of suggesting Under.')
-        featured = data[data.side.isin(['Over', 'Under']) & (data.games >= min_games) & (data.side_hit_rate >= hit_min)]
-        if side_filter != 'All': featured = featured[featured.side.eq(side_filter)]
-        if featured.empty:
-            st.info('No props meet the filters. All imported props remain in the Table tab.')
-        for idx, row in featured.sort_values('side_hit_rate', ascending=False).head(12).iterrows():
-            with st.container(border=True):
-                matched = player_games(stats, row['player'])
-                if 'headshot_url' in matched:
-                    photos = matched.headshot_url.dropna()
-                    if not photos.empty and isinstance(photos.iloc[0], str) and photos.iloc[0].startswith('https://'):
-                        st.image(photos.iloc[0], width=100)
-                st.caption('Mobile availability: unverified')
-                st.subheader(f"{row['player']} | {row['market']} | {row['line']}")
-                st.write(f"{row['team']} vs {row['opponent']} | {row['odds_type']} | {row['game_time'].tz_convert(timezone):%b %d %H:%M %Z}")
-                if row['side_policy'] == 'More only':
-                    st.caption('More-only alternate line: Under is excluded.')
-                st.write(f"Historical direction: {row['side']} | Average: {row['baseline']:.2f} | Difference: {row['edge']:+.2f}")
-                st.write(f"Side hit rate: {row['side_hit_rate']:.0%} across {row['games']} games ({row['history_seasons']}); pushes: {row['push_rate']:.0%}")
-                with st.expander('Why this prop?'):
-                    st.caption('Direction compares the last available N-game average with the line. Hit rates include pushes in the denominator and use the displayed side. They are descriptive, not estimated probabilities.')
-                    st.dataframe(history(player_games(stats, row['player']), row['market'], row['line'], n), hide_index=True)
-    with detail:
-        player = st.selectbox('Player', sorted(data.player.unique()), key='detail_player')
-        st.dataframe(player_games(stats, player).head(n), hide_index=True)
-    with whatif:
-        choices = list(data.index)
-        idx = st.selectbox('Choose prop', choices, format_func=lambda i: f"{data.loc[i, 'player']} / {data.loc[i, 'market']} / {data.loc[i, 'line']} / {data.loc[i, 'odds_type']} / {data.loc[i, 'game_time']}")
-        row = data.loc[idx]
-        line = st.number_input('Your line', min_value=0., value=float(row['line']), step=.5, key=f'line_{idx}_{row["player"]}_{row["market"]}_{row["line"]}')
-        games = player_games(stats, row['player'])
-        result = summarize(games, row['market'], line, n, row['odds_type'])
-        if result:
-            if result['side_policy'] == 'More only':
-                st.info('More-only alternate line. A below-line average means Pass; changing the test line does not unlock Under.')
-            st.write(result)
-            st.dataframe(history(games, row['market'], line, n), hide_index=True)
+    player=st.selectbox('Player',sorted(board.player.unique()))
+    identity=board[board.player.eq(player)].iloc[0]
+    stats=data['stats']; games=stats[stats.player_id.eq(identity.player_id)].copy() if not stats.empty else pd.DataFrame()
+    if nav=='Player':
+        if isinstance(identity.headshot_url,str) and identity.headshot_url.startswith('https://'): st.image(identity.headshot_url,width=90)
+        st.subheader(player)
+        st.caption(f'{identity.position} / {identity.team} / roster: {identity.roster_status}')
+        depth=data['depth']
+        if not depth.empty:
+            entries=depth[depth.gsis_id.eq(identity.player_id)]
+            for _,d in entries.iterrows(): st.write(f"Depth chart: {d.pos_abb}, rank {d.pos_rank} / observed {d.observed_at:%b %d %H:%M UTC}")
+        snaps=data['snaps']
+        if not snaps.empty:
+            recent=snaps[snaps.pfr_player_id.eq(identity.pfr_id) & snaps.game_type.eq('REG')].sort_values(['season','week'],ascending=False).head(n)
+            if not recent.empty:
+                st.subheader('Recorded offensive snap share')
+                st.line_chart(recent.sort_values(['season','week']).set_index('week').offense_pct)
+                st.caption(f'{int(recent.season.max())} season history. Not a forecast of this week\'s playing time. Routes are not inferred from snaps.')
+        if games.empty: st.info('No matched NFL history. No rookie estimate is fabricated.')
         else:
-            st.info('No matching NFL history for this player and market.')
+            with st.expander('Game log'):
+                for _,g in games.head(n).iterrows():
+                    st.write(f"{int(g.season)} Week {int(g.week)} / {g.get('team','')} vs {g.get('opponent_team','')}")
+                    st.caption(f"Targets: {g.get('targets','Unavailable')} / Carries: {g.get('carries','Unavailable')} / Receiving yards: {g.get('receiving_yards','Unavailable')}")
+        return
+    st.subheader('Opportunity lab')
+    st.caption('Experimental play-level volume and efficiency simulation. This is not the full-game, calibrated model described in the product roadmap.')
+    props=board[board.player.eq(player)].reset_index(drop=True)
+    choice=st.selectbox('Prop',list(props.index),format_func=lambda i:f"{LABELS.get(props.loc[i,'market'],props.loc[i,'market'])} / {props.loc[i,'line']} / {props.loc[i,'odds_type']}")
+    row=props.loc[choice]
+    line=st.number_input('What-if line',min_value=0.,value=float(row.line),step=.5,key=f'whatif_{player}_{row.market}_{row.line}')
+    st.caption('Changing this line is hypothetical. It does not create an offer in PrizePicks.')
+    with st.spinner('Loading play-level history...'):
+        pbp,status=play_history(int(season)-1)
+        run=cached_sim(pbp,row.player_id,row.market,int(season),int(week))
+    if not run:
+        st.info('Insufficient play-level history or this market has no research model yet.')
+    else:
+        out=distribution(run,line,row.sides)
+        st.warning('Research only / Uncalibrated / PASS')
+        st.metric('Simulated mean',f"{out['mean']:.1f}")
+        st.write(f"Median {out['median']:.1f} / 10th-90th percentile {out['p10']:.1f}-{out['p90']:.1f}")
+        st.write(f"Simulated MORE {out['more']:.1%} / LESS {out['less']:.1%} / Push {out['push']:.1%}")
+        if 'under' not in row.sides: st.caption('LESS is not offered by this feed for this line; it is an outcome probability only.')
+        if 'over' not in row.sides: st.caption('MORE is not offered by this feed for this line; it is an outcome probability only.')
+        st.write(f"{run['opportunity_label']}: {run['expected_opportunities']:.1f} expected under unchanged-role assumption")
+        counts,bins=np.histogram(run['samples'],bins=25)
+        chart=pd.DataFrame({'Outcome':(bins[:-1]+bins[1:])/2,'Simulations':counts}).set_index('Outcome')
+        st.bar_chart(chart)
+        st.caption(f"Compared with line {line:g}. 20,000 draws / {run['recorded_games']} recorded games / {run['plays']} plays.")
+        with st.expander('Assumptions and risks',expanded=True):
+            for risk in run['assumptions']: st.write(risk)
+        payload={**out,'player':player,'player_id':row.player_id,'game_id':row.game_id,'market':row.market,'line':line,'offered_line':row.line,'hypothetical':bool(line!=row.line),'model_version':VERSION,'created_at':stamp(),'board_fetched_at':fetched,'calibrated':False,'recommendation':'PASS'}
+        if database_url() and st.button('Save pregame research snapshot',disabled=line!=row.line):
+            try:
+                from storage import save_snapshot
+                save_snapshot(database_url(),payload,row.game_time.to_pydatetime())
+                st.success('Pregame research snapshot saved. Original records are never updated by this app.')
+            except Exception:
+                st.error('Snapshot was not saved. Check database connectivity and permissions; no result is claimed.')
+        st.download_button('Download research snapshot',json.dumps(payload,indent=2),'research_snapshot.json','application/json',use_container_width=True)
+    with st.expander('Historical comparison'):
+        if not games.empty:
+            result=summarize(games,row.market,line,n,row.odds_type)
+            if result:
+                st.caption(f"Historical average {result['baseline']:.1f}. These are recorded outcomes, not probabilities.")
+                for _,h in history(games,row.market,line,n).iterrows(): st.write(f"{int(h.season)} W{int(h.week)}: {h.value:g} / {h.result}")
+    st.caption('Performance: Insufficient verified historical data. Calibration, confidence score and model agreement are not available.')
 
-if __name__ == '__main__':
-    main()
+if __name__=='__main__': main()
