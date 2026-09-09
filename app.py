@@ -195,8 +195,9 @@ def main():
         sort_order=st.selectbox('Sort props by',['Best available evidence','Kickoff time'],index=0)
         if sort_order=='Best available evidence':
             stats_for_sort=data['stats']
+            stats_by_player={pid:grp for pid,grp in stats_for_sort.groupby('player_id')} if not stats_for_sort.empty else {}
             def evidence_score(row):
-                games=stats_for_sort[stats_for_sort.player_id.eq(row.player_id)] if not stats_for_sort.empty else pd.DataFrame()
+                games=stats_by_player.get(row.player_id,pd.DataFrame())
                 result=summarize(games,row.market,row.line,n)
                 if not result or result['games']<5: return -1.0
                 edge=abs(float(result['baseline'])-float(row.line))/max(float(row.line),1.0)
