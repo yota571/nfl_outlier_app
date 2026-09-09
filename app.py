@@ -52,6 +52,10 @@ def verified_players(board,rosters,raw_by_id):
         identity,reason=resolve_player(row,rosters)
         if reason: issues.append(f"{row['player']}: {reason}"); continue
         headshot=next((identity.get(name) for name in ('headshot_url','headshot','headshot_url_https') if isinstance(identity.get(name),str) and identity.get(name).startswith('https://')),None)
+        if not headshot:
+            espn_id=identity.get('espn_id')
+            if espn_id is not None and str(espn_id).strip() not in ('','nan','None'):
+                headshot=f'https://a.espncdn.com/i/headshots/nfl/players/full/{str(espn_id).strip()}.png'
         row.update(player_id=identity['gsis_id'],position=identity['position'],headshot_url=headshot,pfr_id=identity.get('pfr_id'),roster_status=identity.get('status'),team_verified=True)
         original=raw_by_id.get(str(row.get('projection_id')), {})
         row['sides']=allowed_sides(row['odds_type'],original.get('allowed_wager_types'))
