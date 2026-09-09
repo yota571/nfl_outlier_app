@@ -15,7 +15,7 @@ from research import simulate, distribution, VERSION
 
 st.set_page_config(page_title='NFL Prop Intelligence',page_icon='🏈',layout='centered')
 st.markdown('''<style>
-.stApp {background:#0b1018;color:#ecf2fa;color-scheme:dark;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.stApp {background:#0b1018;color:#ecf2fa;color-scheme:dark;-webkit-tap-highlight-color:transparent;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}::-webkit-scrollbar{width:8px}::-webkit-scrollbar-track{background:#0b1018}::-webkit-scrollbar-thumb{background:#26364b;border-radius:999px}::-webkit-scrollbar-thumb:hover{background:#38506c}
 .block-container {max-width:850px;padding-top:1.2rem;padding-bottom:5rem}
 h1 {font-size:2rem!important;letter-spacing:-.06rem} h3 {font-size:1.1rem!important}a{color:#70b8ff;text-decoration:none}a:hover,a:focus-visible{text-decoration:underline;color:#9bd0ff}
 header[data-testid="stHeader"] {background:#0b1018}
