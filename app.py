@@ -153,8 +153,9 @@ def main():
             label='MORE / OVER' if (('Over' if (model and reference>r.line) else result['side'])=='Over') else 'LESS / UNDER'
             source='workload model' if model else 'historical baseline'
             flags=' / risk: '+', '.join(risk) if risk else ''
+            roster=str(r.get('roster_status') or 'unknown')
             tier='STRONGER RESEARCH SUPPORT' if result['games']>=10 and not risk else 'RESEARCH WATCH'
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="badge">{label} / {tier}</div><div class="muted">Projection {reference:.1f} / {source} / {result['games']} history games{flags}</div><div class="muted">Not a validated recommendation</div></div>''',unsafe_allow_html=True)
+            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="badge">{label} / {tier}</div><div class="muted">Projection {reference:.1f} / {source} / {result['games']} history games / roster {esc(roster)}{flags}</div><div class="muted">Not a validated recommendation</div></div>''',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
         return
     if nav=='Props':
