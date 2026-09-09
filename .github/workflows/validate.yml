@@ -1,0 +1,17 @@
+name: Validate app
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: pip install -r requirements.txt
+      - name: Compile application modules
+        run: python -m py_compile app.py collector.py core.py opportunity.py storage.py tracking.py workload_ui.py
