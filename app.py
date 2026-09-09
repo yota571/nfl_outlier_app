@@ -136,14 +136,17 @@ def main():
                 model=forecast(model_table,r.player_id,r.team,kind,int(season),int(week))
             reference=float(model['mean']) if model else float(result['baseline'])
             model_edge=(reference-float(r.line))/max(float(r.line),1.0)
+            direction='Over' if model_edge>0 else 'Under' if model_edge<0 else result['side']
             risk=[]
+            if model and direction != result['side']:
+                risk.append('model/history disagreement')
             if not data['snaps'].empty and pd.notna(r.get('pfr_id')):
                 recent=data['snaps'][(data['snaps'].pfr_player_id.eq(r.pfr_id)) & data['snaps'].game_type.eq('REG')].sort_values(['season','week'],ascending=False).head(n)
                 if not recent.empty and recent.offense_pct.mean()<.55: risk.append('low snap share')
-            score=abs(model_edge) * (.85 if risk else 1.0)
+            score=abs(model_edge) * (0.70 if 'model/history disagreement' in risk else 0.85 if risk else 1.0)
             ranked.append((score,r,result,model,risk,reference))
         for score,r,result,model,risk,reference in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
-            label='MORE / OVER' if result['side']=='Over' else 'LESS / UNDER'
+            label='MORE / OVER' if (('Over' if (model and reference>r.line) else result['side'])=='Over') else 'LESS / UNDER'
             source='workload model' if model else 'historical baseline'
             flags=' / risk: '+', '.join(risk) if risk else ''
             st.write(f"{r.player} / {LABELS.get(r.market,r.market)} {r.line:g} / {label} / projection {reference:.1f} / {source} / {result['games']} history games{flags}")
