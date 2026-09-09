@@ -139,11 +139,14 @@ def main():
             direction='Over' if model_edge>0 else 'Under' if model_edge<0 else result['side']
             if model and direction.lower() not in r.sides: continue
             risk=[]
+            snap_share=None
             if model and direction != result['side']:
                 risk.append('model/history disagreement')
             if not data['snaps'].empty and pd.notna(r.get('pfr_id')):
                 recent=data['snaps'][(data['snaps'].pfr_player_id.eq(r.pfr_id)) & data['snaps'].game_type.eq('REG')].sort_values(['season','week'],ascending=False).head(n)
-                if not recent.empty and recent.offense_pct.mean()<.55: risk.append('low snap share')
+                if not recent.empty:
+                    snap_share=float(recent.offense_pct.mean())
+                    if snap_share<.55: risk.append('low snap share')
             if not data['depth'].empty and pd.notna(r.get('player_id')):
                 depth_rows=data['depth'][data['depth'].gsis_id.eq(r.player_id)]
                 if not depth_rows.empty and pd.to_numeric(depth_rows.pos_rank,errors='coerce').min()>1: risk.append('not first on depth chart')
@@ -156,9 +159,10 @@ def main():
             estimated_prob=float(model.get(direction_key, 0.0)) if model else float(result.get('side_hit_rate', 0.0))
             probability_text=f' / estimated {estimated_prob:.0%} {label.split(" /")[0].lower()}' if estimated_prob > 0 else ''
             flags=' / risk: '+', '.join(risk) if risk else ''
+            snap_text=f' / recent snaps {snap_share:.0%}' if snap_share is not None else ''
             roster=str(r.get('roster_status') or 'unknown')
             tier='STRONGER RESEARCH SUPPORT' if result['games']>=10 and not risk else 'RESEARCH WATCH'
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="badge">{label} / {tier}</div><div class="muted">Projection {reference:.1f} / {source}{probability_text} / {result['games']} history games / roster {esc(roster)}{flags}</div><div class="muted">Not a validated recommendation</div></div>''',unsafe_allow_html=True)
+            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="badge">{label} / {tier}</div><div class="muted">Projection {reference:.1f} / {source}{probability_text} / {result['games']} history games / roster {esc(roster)}{snap_text}{flags}</div><div class="muted">Not a validated recommendation</div></div>''',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
         return
     if nav=='Props':
