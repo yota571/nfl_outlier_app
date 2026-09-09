@@ -52,6 +52,13 @@ def foundation(season,week,include_history=False,include_usage=False):
         photo_col=next((name for name in ('headshot_url','headshot','headshot_image') if name in players.columns),None)
         if not players.empty and 'gsis_id' in players and photo_col:
             photo_map=players[['gsis_id',photo_col]].rename(columns={photo_col:'headshot_url'}).dropna(subset=['gsis_id']).drop_duplicates('gsis_id')
+            # Normalize IDs and URLs so joins survive mixed string/numeric nflverse types.
+            for table in (data['rosters'], photo_map):
+                table['gsis_id']=table['gsis_id'].astype('string').str.strip()
+            photo_map['headshot_url']=photo_map['headshot_url'].map(
+                lambda value: str(value).strip().replace('http://','https://',1)
+                if pd.notna(value) and str(value).strip().startswith(('http://','https://')) else pd.NA
+            )
             data['rosters']=data['rosters'].drop(columns=['headshot_url'],errors='ignore').merge(photo_map,on='gsis_id',how='left')
     data['depth'],data['snaps']=pd.DataFrame(),pd.DataFrame()
     if include_usage:
