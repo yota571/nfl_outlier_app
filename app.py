@@ -17,7 +17,7 @@ st.set_page_config(page_title='NFL Prop Intelligence',page_icon='🏈',layout='c
 st.markdown('''<style>
 .stApp {background:#0b1018;color:#ecf2fa;color-scheme:dark;-webkit-tap-highlight-color:transparent}
 .block-container {max-width:850px;padding-top:1.2rem;padding-bottom:5rem}
-h1 {font-size:2rem!important;letter-spacing:-.06rem} h3 {font-size:1.1rem!important}
+h1 {font-size:2rem!important;letter-spacing:-.06rem} h3 {font-size:1.1rem!important}a{color:#70b8ff;text-decoration:none}a:hover,a:focus-visible{text-decoration:underline;color:#9bd0ff}
 header[data-testid="stHeader"] {background:#0b1018}
 .card {background:#141e2c;border:1px solid #26364b;border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 6px 18px rgba(0,0,0,.14);transition:transform .15s ease,box-shadow .15s ease}@media(hover:hover){.card:hover{transform:translateY(-1px);box-shadow:0 9px 24px rgba(0,0,0,.22)}}[data-testid="stExpander"]{border:1px solid #26364b;border-radius:12px;overflow:hidden;background:#0f1622}[data-testid="stExpander"] summary{min-height:44px;padding:0 12px}
 .eyebrow {font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#77dac6;font-weight:700}
