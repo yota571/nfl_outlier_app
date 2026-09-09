@@ -153,7 +153,7 @@ def main():
             label='MORE / OVER' if (('Over' if (model and reference>r.line) else result['side'])=='Over') else 'LESS / UNDER'
             source='workload model' if model else 'historical baseline'
             direction_key='more' if label=='MORE / OVER' else 'less'
-            estimated_prob=float(model.get(direction_key, 0.0)) if model else float(result.get('rate', 0.0))
+            estimated_prob=float(model.get(direction_key, 0.0)) if model else float(result.get('side_hit_rate', 0.0))
             probability_text=f' / estimated {estimated_prob:.0%} {label.split(" /")[0].lower()}' if estimated_prob > 0 else ''
             flags=' / risk: '+', '.join(risk) if risk else ''
             roster=str(r.get('roster_status') or 'unknown')
