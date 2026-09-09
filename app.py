@@ -2,6 +2,7 @@ import html
 import os
 import json
 import time
+from urllib.parse import quote_plus
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import numpy as np
@@ -69,6 +70,10 @@ def verified_players(board,rosters,raw_by_id):
                     espn_text=espn_text[:-2]
                 if espn_text.isdigit():
                     headshot=f'https://a.espncdn.com/i/headshots/nfl/players/full/{espn_text}.png'
+        # Always give the card a visible image slot when a provider omits a photo.
+        # The initials image is a deterministic fallback; real NFL/ESPN photos win above.
+        if not headshot:
+            headshot=f'https://ui-avatars.com/api/?name={quote_plus(str(row.get("player","NFL Player")))}&background=17263a&color=ffffff&bold=true&size=96'
         row.update(player_id=identity['gsis_id'],position=identity['position'],headshot_url=headshot,pfr_id=identity.get('pfr_id'),roster_status=identity.get('status'),team_verified=True)
         original=raw_by_id.get(str(row.get('projection_id')), {})
         row['sides']=allowed_sides(row['odds_type'],original.get('allowed_wager_types'))
