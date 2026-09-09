@@ -51,7 +51,7 @@ def verified_players(board,rosters,raw_by_id):
     for row in board.to_dict('records'):
         identity,reason=resolve_player(row,rosters)
         if reason: issues.append(f"{row['player']}: {reason}"); continue
-        headshot=identity.get('headshot_url') or identity.get('headshot') or identity.get('headshot_url_https')
+        headshot=next((identity.get(name) for name in ('headshot_url','headshot','headshot_url_https') if isinstance(identity.get(name),str) and identity.get(name).startswith('https://')),None)
         row.update(player_id=identity['gsis_id'],position=identity['position'],headshot_url=headshot,pfr_id=identity.get('pfr_id'),roster_status=identity.get('status'),team_verified=True)
         original=raw_by_id.get(str(row.get('projection_id')), {})
         row['sides']=allowed_sides(row['odds_type'],original.get('allowed_wager_types'))
@@ -227,9 +227,10 @@ def main():
             lean,lean_detail=historical_lean(games,r.market,r.line,n,r.sides)
             side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Side availability unknown'
             roster_text=str(r.get('roster_status') or 'unknown')
-            photo_url=str(r.get('headshot_url') or '')
-            photo_html=f'<img class="pick-headshot" src="{esc(photo_url)}" alt="">' if photo_url.startswith('https://') else ''
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="pick-title">{photo_html}<div class="player">{esc(r.player)}</div></div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)} / roster: {esc(roster_text)}</div><div class="badge">{esc(lean)}</div><div class="muted">{esc(lean_detail)}</div><div class="muted">Historical comparison / not a model pick</div></div>''',unsafe_allow_html=True)
+            photo_value=r.get('headshot_url')
+            photo_url=photo_value if isinstance(photo_value,str) and photo_value.startswith('https://') else ''
+            if photo_url: st.image(photo_url,width=52)
+            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)} / roster: {esc(roster_text)}</div><div class="badge">{esc(lean)}</div><div class="muted">{esc(lean_detail)}</div><div class="muted">Historical comparison / not a model pick</div></div>''',unsafe_allow_html=True)
         st.number_input('Page',1,pages,page,key='board_page')
         st.caption(f'{len(view)} matching lines. Sort uses historical sample size and distance from the offered line; it is research context, not a validated pick.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
