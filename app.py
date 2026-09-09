@@ -63,12 +63,14 @@ def verified_players(board,rosters,raw_by_id):
         # Keep both nflverse/NFL URLs and ESPN fallback photos. Some feeds return
         # http URLs or numeric ESPN IDs as floats, so normalize before rendering.
         headshot=None
+        photo_source='unavailable'
         for name in ('headshot_url','headshot','headshot_url_https'):
             value=identity.get(name)
             if pd.notna(value):
                 candidate=str(value).strip()
                 if candidate.startswith(('https://','http://')):
                     headshot=candidate.replace('http://','https://',1)
+                    photo_source='nflverse'
                     break
         if not headshot:
             espn_raw=identity.get('espn_id')
@@ -78,11 +80,13 @@ def verified_players(board,rosters,raw_by_id):
                     espn_text=espn_text[:-2]
                 if espn_text.isdigit():
                     headshot=f'https://a.espncdn.com/i/headshots/nfl/players/full/{espn_text}.png'
+                    photo_source='espn'
         # Always give the card a visible image slot when a provider omits a photo.
         # The initials image is a deterministic fallback; real NFL/ESPN photos win above.
         if not headshot:
+            photo_source='avatar'
             headshot=f'https://ui-avatars.com/api/?name={quote_plus(str(row.get("player","NFL Player")))}&background=17263a&color=ffffff&bold=true&size=96'
-        row.update(player_id=identity['gsis_id'],position=identity['position'],headshot_url=headshot,pfr_id=identity.get('pfr_id'),roster_status=identity.get('status'),team_verified=True)
+        row.update(player_id=identity['gsis_id'],position=identity['position'],headshot_url=headshot,photo_source=photo_source,pfr_id=identity.get('pfr_id'),roster_status=identity.get('status'),team_verified=True)
         original=raw_by_id.get(str(row.get('projection_id')), {})
         row['sides']=allowed_sides(row['odds_type'],original.get('allowed_wager_types'))
         verified.append(row)
@@ -236,6 +240,8 @@ def main():
         if position!='All': view=view[view.position.eq(position)]
         if market!='All': view=view[view.market.eq(market)]
         if line_type!='All': view=view[view.odds_type.str.lower().eq(line_type.lower())]
+        real_photos=int(view.get('photo_source',pd.Series(index=view.index)).isin(['nflverse','espn']).sum()) if 'photo_source' in view else 0
+        st.caption(f'Player photos: {real_photos}/{len(view)} provider photos available; fallback avatars fill any missing images.')
         sort_order=st.selectbox('Sort props by',['Best available evidence','Kickoff time'],index=0)
         if sort_order=='Best available evidence':
             stats_for_sort=data['stats']
