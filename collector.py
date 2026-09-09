@@ -1,5 +1,6 @@
 """Collect the currently active NFL slate without a Streamlit browser session."""
 import os
+import time
 import pandas as pd
 from datetime import datetime,timezone,timedelta
 from core import parse_board
@@ -31,7 +32,15 @@ def main():
             row['player_id']=identity['gsis_id']
             row['sides']=allowed_sides(row['odds_type'],originals.get(str(row['projection_id']),{}).get('allowed_wager_types'))
             records.append(row)
-        if records: saved+=save_board_snapshot(url,pd.DataFrame(records),fetched,history['stats'],model_table,season,week)
+        if records:
+            frame=pd.DataFrame(records)
+            for attempt in range(3):
+                try:
+                    saved+=save_board_snapshot(url,frame,fetched,history['stats'],model_table,season,week)
+                    break
+                except Exception:
+                    if attempt==2: raise
+                    time.sleep(2 ** attempt)
     print(f'Collected {saved} new verified observations')
     pending=board_records(url)
     ready=[r for r in pending if r['actual'] is None and datetime.fromisoformat(r['kickoff']) <= now-timedelta(hours=36)]
