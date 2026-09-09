@@ -15,7 +15,7 @@ from research import simulate, distribution, VERSION
 
 st.set_page_config(page_title='NFL Prop Intelligence',page_icon='🏈',layout='centered')
 st.markdown('''<style>
-.stApp {background:#0b1018;color:#ecf2fa}
+.stApp {background:#0b1018;color:#ecf2fa;color-scheme:dark;-webkit-tap-highlight-color:transparent}
 .block-container {max-width:850px;padding-top:1.2rem;padding-bottom:5rem}
 h1 {font-size:2rem!important;letter-spacing:-.06rem} h3 {font-size:1.1rem!important}
 header[data-testid="stHeader"] {background:#0b1018}
@@ -31,7 +31,7 @@ header[data-testid="stHeader"] {background:#0b1018}
 button {min-height:44px;border-radius:10px!important}.stButton>button{background:#111b29;border:1px solid #38506c;color:#ecf2fa;transition:border-color .15s ease,background .15s ease}.stButton>button:hover{background:#17263a;border-color:#77dac6;color:#ffffff} button:focus-visible,input:focus-visible,select:focus-visible,[role="combobox"]:focus-visible{outline:3px solid #77dac6!important;outline-offset:2px} [data-testid="stRadio"] {background:#101925;border-radius:12px;padding:8px}
 [data-testid="stRadio"] {position:fixed;bottom:0;left:0;right:0;max-width:820px;margin:auto;z-index:999;border:1px solid #26364b;box-shadow:0 -8px 24px rgba(0,0,0,.28);backdrop-filter:blur(12px);padding-bottom:max(8px,env(safe-area-inset-bottom))}
 [data-testid="stRadio"] label p {font-size:13px;margin:0} [data-testid="stRadio"] label:has(input:checked) p{color:#77dac6;font-weight:700} [data-testid="stRadio"] label:has(input:checked){background:#17263a;border-radius:9px}
-@media(max-width:640px){.block-container{padding:1rem .8rem 6.5rem} [data-testid="stTextInput"] input,[data-testid="stSelectbox"]>div,[data-testid="stNumberInput"] input{min-height:46px} h1{font-size:1.65rem!important;margin-bottom:.25rem}.player{font-size:20px}.card{padding:15px;border-radius:16px}.muted{font-size:12px;line-height:1.45}.line{font-size:30px}.prop-summary strong{font-size:24px}[data-testid="stRadio"] div[role="radiogroup"]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}[data-testid="stRadio"] label{justify-content:center;min-height:34px;padding:3px 1px}[data-testid="stRadio"]{left:.5rem;right:.5rem;width:auto;border-radius:14px 14px 0 0}.stApp{overflow-x:hidden}}
+@media(max-width:640px){.block-container{padding:1rem .8rem 6.5rem} [data-testid="stTextInput"] input,[data-testid="stSelectbox"]>div,[data-testid="stNumberInput"] input{min-height:46px} h1{font-size:1.65rem!important;margin-bottom:.25rem}.player{font-size:20px}.card{padding:15px;border-radius:16px}.muted{font-size:12px;line-height:1.45}.line{font-size:30px}.prop-summary strong{font-size:24px}[data-testid="stRadio"] div[role="radiogroup"]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}[data-testid="stRadio"] label{justify-content:center;min-height:34px;padding:3px 1px;white-space:nowrap}[data-testid="stRadio"]{left:.5rem;right:.5rem;width:auto;border-radius:14px 14px 0 0}.stApp{overflow-x:hidden}}
 </style>''',unsafe_allow_html=True)
 LABELS={'targets':'Receiving targets','pass_yds':'Passing yards','rush_yds':'Rushing yards','rec_yds':'Receiving yards','receptions':'Receptions','rush_att':'Rush attempts','pass_td':'Passing touchdowns','rush_rec_yds':'Rush + receiving yards','pass_rush_yds':'Pass + rushing yards'}
 def database_url():
