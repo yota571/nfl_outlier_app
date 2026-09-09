@@ -121,13 +121,13 @@ def main():
         st.info('No verified props available for this slate. Check Health for source or mapping issues.'); return
     if database_url() and not upload:
         from storage import save_board_snapshot
-        from workload_ui import assets
-        model_table,_=assets()
         saved_count=None
         last_error=None
         for attempt in range(3):
             try:
-                saved_count=save_board_snapshot(database_url(), board, fetched, data['stats'],model_table,int(season),int(week))
+                # Keep the interactive load fast: the collector enriches these
+                # immutable board snapshots with history and workload forecasts.
+                saved_count=save_board_snapshot(database_url(), board, fetched, None, None, int(season), int(week))
                 break
             except Exception as exc:
                 last_error=exc
