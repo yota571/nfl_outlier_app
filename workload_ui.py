@@ -87,9 +87,19 @@ def render_results(url):
   if st.button('Refresh official results'):
    try:
     import nflreadpy as nfl
-    seasons=sorted({int(r['game_id'].split('_')[0]) for r in records if r['actual'] is None})
+    from datetime import datetime, timezone, timedelta
+    cutoff=datetime.now(timezone.utc)-timedelta(hours=36)
+    ready=[]
+    for record in records:
+     if record['actual'] is not None: continue
+     try:
+      kickoff=datetime.fromisoformat(str(record['kickoff'])).astimezone(timezone.utc)
+     except (KeyError, TypeError, ValueError):
+      continue
+     if kickoff <= cutoff: ready.append(record)
+    seasons=sorted({int(r['game_id'].split('_')[0]) for r in ready})
     if not seasons:
-     st.info('No pending forecasts are ready to settle yet. Saved forecasts remain listed below.')
+     st.info('No pending forecasts are 36 hours past kickoff yet. Saved forecasts remain listed below.')
     else:
      stats=nfl.load_player_stats(seasons).to_pandas();schedule=nfl.load_schedules(seasons).to_pandas()
      n=settle(url,stats,schedule);st.success(f'{n} results added.')
