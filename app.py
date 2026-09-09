@@ -132,6 +132,8 @@ def main():
         st.subheader('Top picks')
         st.caption('Ranked with tested workload forecasts when available, historical baselines otherwise. Probabilities remain uncalibrated.')
         st.caption('Context limits: injuries, weather, live routes and game-script changes are not modeled.')
+        pick_mode=st.selectbox('Show', ['Qualified research candidates','Full research watchlist'], index=0)
+        st.caption('Qualified view requires at least 8 history games, a 5% projection edge, and 55% side support. These remain uncalibrated research signals.')
         from workload_ui import assets
         model_table,_=assets()
         ranked=[]
@@ -150,6 +152,8 @@ def main():
             model_edge=(reference-float(r.line))/max(float(r.line),1.0)
             direction='Over' if model_edge>0 else 'Under' if model_edge<0 else result['side']
             if model and direction.lower() not in r.sides: continue
+            side_prob=float(model.get('more' if direction=='Over' else 'less',0.0)) if model else float(result.get('side_hit_rate',0.0))
+            if pick_mode=='Qualified research candidates' and (result['games']<8 or abs(model_edge)<0.05 or side_prob<0.55): continue
             risk=[]
             snap_share=None
             if model and direction != result['side']:
