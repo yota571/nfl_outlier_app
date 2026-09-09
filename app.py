@@ -47,7 +47,7 @@ def photo_markup(name, url):
     src=str(url or '').strip()
     if not src.startswith(('https://','http://')): src=fallback
     src=src.replace('http://','https://',1)
-    return f'<img class="pick-headshot" src="{esc(src)}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src=\'{esc(fallback)}\';" alt="">'
+    return f'<img class="pick-headshot" src="{esc(src)}" loading="lazy" decoding="async" width="56" height="56" onerror="this.onerror=null;this.src=\'{esc(fallback)}\';" alt="">'
 
 @st.cache_data(ttl=86400,max_entries=24,show_spinner=False)
 def cached_sim(pbp,player_id,market,season,week):
