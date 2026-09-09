@@ -155,6 +155,16 @@ def render_board_results(url):
       st.write('Model leaderboard / earliest observation per player, game and market')
       st.dataframe(leaderboard,hide_index=True,use_container_width=True)
       st.caption('MAE and Brier are computed only from completed, pregame observations. Lower is better. Methods may cover different player sets, so compare rows with similar sample sizes.')
+      calibrated=[r for r in unique.values() if r.get('model') and r['actual'] is not None]
+      if len(calibrated)>=10:
+       cal=pd.DataFrame([{'Predicted MORE':float(r['model']['more']),'Observed MORE':float(r['actual']>r['line'])} for r in calibrated])
+       cal['Band']=pd.cut(cal['Predicted MORE'],[0,.5,.6,.7,.8,.9,1.0],include_lowest=True)
+       reliability=cal.groupby('Band',observed=False).agg(Games=('Observed MORE','size'),Predicted=('Predicted MORE','mean'),Observed=('Observed MORE','mean')).reset_index()
+       st.write('Probability calibration / workload model')
+       st.dataframe(reliability,hide_index=True,use_container_width=True)
+       st.caption('Observed MORE rates should approach predicted rates as the sample grows. This is diagnostic evidence, not a betting guarantee.')
+      else:
+       st.caption(f'Calibration needs at least 10 completed workload predictions; {len(calibrated)} are available.')
    st.caption('Personal workload forecasts are listed below. Historical baseline probabilities are uncalibrated; collection does not automatically retrain a model.')
   except Exception:
    st.error('Automatic board history is unavailable. Check database access; no successful tracking is claimed.')
