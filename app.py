@@ -250,7 +250,9 @@ def main():
         if line_type!='All': view=view[view.odds_type.str.lower().eq(line_type.lower())]
         real_photos=int(view.get('photo_source',pd.Series(index=view.index)).isin(['nflverse','espn']).sum()) if 'photo_source' in view else 0
         st.caption(f'Player photos: {real_photos}/{len(view)} provider photos available; fallback avatars fill any missing images.')
-        sort_order=st.selectbox('Sort props by',['Best available evidence','Kickoff time'],index=0)\n        if sort_order=='Best available evidence': st.caption('Evidence order favors verified history, model context, and lower risk flags; it is not a win probability.')\n        else: st.caption('Kickoff order groups props by game start time.')
+        sort_order=st.selectbox('Sort props by',['Best available evidence','Kickoff time'],index=0)
+        if sort_order=='Best available evidence': st.caption('Evidence order favors verified history, model context, and lower risk flags; it is not a win probability.')
+        else: st.caption('Kickoff order groups props by game start time.')
         if sort_order=='Best available evidence':
             stats_for_sort=data['stats']
             stats_by_player={pid:grp for pid,grp in stats_for_sort.groupby('player_id')} if not stats_for_sort.empty else {}
