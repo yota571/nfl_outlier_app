@@ -31,7 +31,7 @@ header[data-testid="stHeader"] {background:#0b1018}
 button {min-height:44px} [data-testid="stRadio"] {background:#101925;border-radius:12px;padding:8px}
 [data-testid="stRadio"] {position:fixed;bottom:0;left:0;right:0;max-width:820px;margin:auto;z-index:999;border:1px solid #26364b;padding-bottom:max(8px,env(safe-area-inset-bottom))}
 [data-testid="stRadio"] label p {font-size:13px}
-@media(max-width:640px){.block-container{padding:1rem .8rem 5rem} h1{font-size:1.65rem!important}.player{font-size:20px}.card{padding:15px} [data-testid="stRadio"] div[role="radiogroup"] {gap:6px} .stApp {overflow-x:hidden}}
+@media(max-width:640px){.block-container{padding:1rem .8rem 6.5rem} h1{font-size:1.65rem!important;margin-bottom:.25rem}.player{font-size:20px}.card{padding:15px;border-radius:16px}.muted{font-size:12px;line-height:1.45}.line{font-size:30px}.prop-summary strong{font-size:24px}[data-testid="stRadio"] div[role="radiogroup"]{gap:4px;justify-content:space-around}[data-testid="stRadio"] label{padding:3px 1px}.stApp{overflow-x:hidden}}
 </style>''',unsafe_allow_html=True)
 LABELS={'targets':'Receiving targets','pass_yds':'Passing yards','rush_yds':'Rushing yards','rec_yds':'Receiving yards','receptions':'Receptions','rush_att':'Rush attempts','pass_td':'Passing touchdowns','rush_rec_yds':'Rush + receiving yards','pass_rush_yds':'Pass + rushing yards'}
 def database_url():
