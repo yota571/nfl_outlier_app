@@ -22,6 +22,9 @@ def snapshot_record(payload, kickoff, now=None):
     body={**payload,'created_at':now.isoformat(),'kickoff':kickoff.isoformat()}
     encoded=json.dumps(body,sort_keys=True,allow_nan=False)
     stable={k:v for k,v in body.items() if k not in ('created_at','board_fetched_at')}
+    if body.get('board_fetched_at'):
+        observed=datetime.fromisoformat(body['board_fetched_at']).replace(minute=(datetime.fromisoformat(body['board_fetched_at']).minute//30)*30,second=0,microsecond=0)
+        stable['board_window']=observed.isoformat()
     return hashlib.sha256(json.dumps(stable,sort_keys=True,allow_nan=False).encode()).hexdigest(),now,kickoff,body['model_version'],encoded
 
 def save_snapshot(database_url,payload,kickoff):
