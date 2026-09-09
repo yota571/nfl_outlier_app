@@ -99,7 +99,14 @@ def main():
         st.warning('Current injury reports, live routes, weather forecasts and sportsbook prices are not connected. No calibrated recommendations are enabled.')
         st.caption('Roster status is not a practice report or confirmation of game-day availability. Depth charts are timestamped observations, not guaranteed starters.')
         st.write('Database: configured; connection is tested when saving.' if database_url() else 'Database: not connected. Durable prediction history is not enabled.')
-        st.write(f'Model: {VERSION} / calibration: unavailable / agreement: not evaluated')
+        st.write(f'Model: {VERSION} / live probability calibration: unavailable / agreement: not evaluated')
+        try:
+            from workload_ui import assets
+            _,evaluation=assets()
+            for kind,metrics in evaluation.get('metrics',{}).items():
+                st.caption(f'Historical {kind} workload test: MAE {metrics["mae"]:.2f} vs baseline {metrics["baseline_mae"]:.2f} across {metrics["games"]:,} player-games; this is not a betting win rate.')
+        except Exception:
+            st.caption('Historical workload evaluation is unavailable.')
         st.write(f'Verified props: {len(board)} / rejected mappings and games: {len(issues)}')
         with st.expander('Import details'):
             st.write(skips)
