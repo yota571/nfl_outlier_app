@@ -67,7 +67,7 @@ def main():
         upload=st.file_uploader('Optional board JSON',type=['json'])
         if st.button('Refresh sources',use_container_width=True):
             board_source.clear(); foundation.clear(); play_history.clear(); depth_source.clear(); snap_source.clear(); cached_sim.clear()
-    nav=st.radio('Navigate',['Props','Top opportunities','Player','Research','Results','Health'],horizontal=True,label_visibility='collapsed')
+    nav=st.radio('Navigate',['Props','Top picks','Player','Research','Results','Health'],horizontal=True,label_visibility='collapsed')
     if nav=='Results':
         from workload_ui import render_results
         render_results(database_url())
@@ -82,7 +82,7 @@ def main():
         except Exception as exc:
             board=pd.DataFrame(); skips={}; fetched=stamp()
             health.append(dict(source='PrizePicks',status='Unavailable',checked_at=fetched,error=str(exc)))
-        data,source_health=foundation(int(season),int(week),include_history=nav in ('Props','Top opportunities','Player','Research'),include_usage=nav in ('Player','Top opportunities')); health.extend(source_health)
+        data,source_health=foundation(int(season),int(week),include_history=nav in ('Props','Top picks','Player','Research'),include_usage=nav in ('Player','Top picks')); health.extend(source_health)
     issues=[]
     if not board.empty:
         board,issues=attach_games(board,data['schedule'],season,week)
@@ -118,8 +118,8 @@ def main():
         except Exception:
             st.warning('Board tracking failed. These lines were not confirmed saved. Check Results and database connectivity.')
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
-    if nav=='Top opportunities':
-        st.subheader('Top opportunities')
+    if nav=='Top picks':
+        st.subheader('Top picks')
         st.caption('Ranked with tested workload forecasts when available, historical baselines otherwise. Probabilities remain uncalibrated.')
         from workload_ui import assets
         model_table,_=assets()
