@@ -71,6 +71,10 @@ def save_board_snapshot(database_url, board, fetched_at, stats=None, model_table
         values.append(snapshot_record(payload,kickoff,now))
     inserted=0
     with connect(database_url) as conn:
+        # Board imports can contain thousands of rows; allow the idempotent index writes
+        # enough time while still bounding lock waits from another collector run.
+        conn.execute("SET LOCAL statement_timeout = '120s'")
+        conn.execute("SET LOCAL lock_timeout = '15s'")
         conn.execute(DDL)
         ensure_rls(conn, 'nfl_research_snapshots')
         conn.commit()
