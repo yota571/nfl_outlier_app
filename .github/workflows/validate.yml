@@ -15,3 +15,36 @@ jobs:
       - run: pip install -r requirements.txt
       - name: Compile application modules
         run: python -m py_compile app.py collector.py core.py opportunity.py storage.py tracking.py workload_ui.py
+      - name: Check grouped board and load-analysis interaction
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from streamlit.testing.v1 import AppTest
+          fixture = """
+          import pandas as pd
+          import sources, core, verification
+          board=pd.DataFrame([
+              dict(player='Test Player',team='NE',opponent='SEA',market=m,line=v,game_time=pd.Timestamp('2026-09-20T20:00:00Z'),odds_type='standard',projection_id=str(i),game_id='test-game',home_away='Home')
+              for i,(m,v) in enumerate([('rec_yds',63.5),('targets',8.0)])
+          ])
+          sources.board_source=lambda: ([], '2026-09-09T20:00:00Z')
+          sources.foundation=lambda *a,**k: ({'schedule':pd.DataFrame(),'rosters':pd.DataFrame(),'stats':pd.DataFrame(),'depth':pd.DataFrame(),'snaps':pd.DataFrame()},[])
+          core.parse_board=lambda raw: (board.copy(),{})
+          verification.attach_games=lambda b,*a: (b,[])
+          verification.resolve_player=lambda *a: (dict(gsis_id='test-id',position='WR',headshot_url='https://example.com/photo.png',status='ACT'),None)
+          """
+          import textwrap
+          at=AppTest.from_string(textwrap.dedent(fixture)+'\n'+Path('app.py').read_text()).run()
+          assert not at.exception, at.exception
+          cards=[m.value for m in at.markdown if 'player-group' in m.value and '<div class="card' in m.value]
+          assert len(cards)==1, cards
+          assert cards[0].count('Test Player')==1
+          assert 'Receiving yards' in cards[0] and 'Receiving targets' in cards[0]
+          assert 'History not loaded' in cards[0] and 'NO HISTORY' not in cards[0]
+          assert any(n.label=='Player page' and n.value==1 for n in at.number_input)
+          next(b for b in at.button if b.label=='Load analysis').click().run()
+          assert not at.exception, at.exception
+          assert at.session_state['board_history'] is True
+          assert any('NO HISTORY' in m.value for m in at.markdown)
+          print('Grouped props, complete-player pagination, and history toggle passed')
+          PY
