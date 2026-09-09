@@ -162,6 +162,14 @@ def main():
         # complete board snapshots without delaying the mobile page.
         st.caption('Background board tracking is enabled; this page stays read-only for faster loading.')
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
+    try:
+        board_age=(pd.Timestamp.now(tz='UTC')-pd.to_datetime(fetched,utc=True)).total_seconds()/60
+        if board_age>15:
+            st.warning(f'Board data is {board_age:.0f} minutes old. Refresh before using a line.')
+        elif board_age>5:
+            st.caption(f'Board refreshed {board_age:.0f} minutes ago; confirm the live line before using it.')
+    except (TypeError,ValueError):
+        st.warning('Board freshness could not be verified. Confirm every line in PrizePicks.')
     if nav=='Top picks':
         st.subheader('Top picks')
         st.caption('Ranked with tested workload forecasts when available, historical baselines otherwise. Probabilities remain uncalibrated.')
