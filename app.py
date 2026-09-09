@@ -128,6 +128,7 @@ def main():
     if nav=='Top picks':
         st.subheader('Top picks')
         st.caption('Ranked with tested workload forecasts when available, historical baselines otherwise. Probabilities remain uncalibrated.')
+        st.caption('Context limits: injuries, weather, live routes and game-script changes are not modeled.')
         from workload_ui import assets
         model_table,_=assets()
         ranked=[]
