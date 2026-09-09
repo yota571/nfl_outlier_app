@@ -21,6 +21,7 @@ def main():
     originals={str(r.get('projection_id')):r for r in raw}
     model_table=pd.read_parquet(Path(__file__).parent/'model_assets'/'opportunity_history.parquet')
     saved=0
+    errors=[]
     for week in range(1,19):
         board,_=attach_games(parsed,schedule,season,week)
         if board.empty: continue
@@ -38,10 +39,16 @@ def main():
                 try:
                     saved+=save_board_snapshot(url,frame,fetched,history['stats'],model_table,season,week)
                     break
-                except Exception:
-                    if attempt==2: raise
+                except Exception as exc:
+                    if attempt==2:
+                        errors.append(f"week {week}: {type(exc).__name__}: {exc}")
+                        break
                     time.sleep(2 ** attempt)
     print(f'Collected {saved} new verified observations')
+    for error in errors:
+        print(f'Collection warning: {error}')
+    if errors and saved == 0:
+        raise RuntimeError('No board observations were saved; ' + '; '.join(errors))
     pending=board_records(url)
     ready=[r for r in pending if r['actual'] is None and datetime.fromisoformat(r['kickoff']) <= now-timedelta(hours=36)]
     seasons=sorted({int(r['game_id'].split('_')[0]) for r in ready})
