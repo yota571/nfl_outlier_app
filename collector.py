@@ -1,7 +1,7 @@
 """Collect the currently active NFL slate without a Streamlit browser session."""
 import os
 import pandas as pd
-from datetime import datetime,timezone
+from datetime import datetime,timezone,timedelta
 from core import parse_board
 from sources import board_source,foundation
 from verification import attach_games,resolve_player,allowed_sides
@@ -34,7 +34,8 @@ def main():
         if records: saved+=save_board_snapshot(url,pd.DataFrame(records),fetched,history['stats'],model_table,season,week)
     print(f'Collected {saved} new verified observations')
     pending=board_records(url)
-    seasons=sorted({int(r['game_id'].split('_')[0]) for r in pending if r['actual'] is None})
+    ready=[r for r in pending if r['actual'] is None and datetime.fromisoformat(r['kickoff']) <= now-timedelta(hours=36)]
+    seasons=sorted({int(r['game_id'].split('_')[0]) for r in ready})
     settled=0
     if seasons:
         import nflreadpy as nfl
