@@ -121,22 +121,9 @@ def main():
     if board.empty:
         st.info('No verified props available for this slate. Check Health for source or mapping issues.'); return
     if database_url() and not upload:
-        from storage import save_board_snapshot
-        saved_count=None
-        last_error=None
-        for attempt in range(3):
-            try:
-                # Keep the interactive load fast: the collector enriches these
-                # immutable board snapshots with history and workload forecasts.
-                saved_count=save_board_snapshot(database_url(), board, fetched, None, None, int(season), int(week))
-                break
-            except Exception as exc:
-                last_error=exc
-                if attempt<2: time.sleep(1.5*(attempt+1))
-        if saved_count is not None:
-            st.caption(f'Board tracking connected / {saved_count} new observations saved. Collection runs when the board loads.')
-        else:
-            st.warning('Board tracking is temporarily busy. These lines will be retried on the next refresh.')
+        # Interactive rendering stays read-only; the background collector writes
+        # complete board snapshots without delaying the mobile page.
+        st.caption('Background board tracking is enabled; this page stays read-only for faster loading.')
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
     if nav=='Top picks':
         st.subheader('Top picks')
