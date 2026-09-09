@@ -67,6 +67,7 @@ def main():
         season=st.number_input('Season',2000,now.year+1,now.year if now.month>=3 else now.year-1)
         week=st.number_input('Week',1,18,1)
         n=st.slider('Historical games',5,25,10)
+        load_board_history=st.checkbox('Load historical context on the Props board (slower)',value=False)
         timezone=st.selectbox('Timezone',['America/Chicago','America/New_York','America/Denver','America/Los_Angeles','UTC'])
         upload=st.file_uploader('Optional board JSON',type=['json'])
         if st.button('Refresh sources',use_container_width=True):
@@ -86,7 +87,7 @@ def main():
         except Exception as exc:
             board=pd.DataFrame(); skips={}; fetched=stamp()
             health.append(dict(source='PrizePicks',status='Unavailable',checked_at=fetched,error=str(exc)))
-        data,source_health=foundation(int(season),int(week),include_history=nav in ('Props','Top picks','Player','Research'),include_usage=nav in ('Player','Top picks')); health.extend(source_health)
+        data,source_health=foundation(int(season),int(week),include_history=load_board_history or nav in ('Top picks','Player','Research'),include_usage=nav in ('Player','Top picks')); health.extend(source_health)
     issues=[]
     if not board.empty:
         board,issues=attach_games(board,data['schedule'],season,week)
@@ -196,6 +197,7 @@ def main():
     if nav=='Props':
         st.markdown('### NFL board')
         st.caption('Cards show a historical MORE/LESS lean, not a validated prediction. Research contains experimental simulations. Confirm the exact line in PrizePicks.')
+        if not load_board_history: st.caption('Fast board mode: historical context is off. Enable it in Slate & settings when you want history on every card.')
         search=st.text_input('Find a player',placeholder='Search player name')
         with st.expander('Filter position, market & line type'):
             position=st.selectbox('Position',['All']+sorted(board.position.dropna().unique()))
