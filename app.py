@@ -96,7 +96,7 @@ def main():
     st.markdown('<div class="eyebrow">NFL / WEEKLY RESEARCH</div>',unsafe_allow_html=True)
     st.title('NFL Prop Intelligence')
     st.caption('Verified matchups. Real opportunity data. Evidence before confidence.')
-    if st.button('Refresh board',use_container_width=True):
+    if st.button('Refresh board',use_container_width=True,type='primary'):
         board_source.clear(); foundation.clear(); play_history.clear(); depth_source.clear(); snap_source.clear(); cached_sim.clear()
         st.rerun()
     now=datetime.now(ZoneInfo('America/Chicago'))
