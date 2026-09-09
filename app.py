@@ -279,6 +279,18 @@ def main():
             photo_url=photo_value if isinstance(photo_value,str) else ''
             stats=data['stats']
             games=stats[stats.player_id.eq(first.player_id)] if not stats.empty else pd.DataFrame()
+            context_bits=[]
+            if load_board_history:
+                snaps=data.get('snaps',pd.DataFrame())
+                if not snaps.empty and pd.notna(first.get('pfr_id')) and 'pfr_player_id' in snaps:
+                    recent=snaps[(snaps.pfr_player_id.eq(first.pfr_id)) & snaps.game_type.eq('REG')].sort_values(['season','week'],ascending=False).head(n)
+                    if not recent.empty:
+                        context_bits.append(f"recent snap share {float(pd.to_numeric(recent.offense_pct,errors='coerce').mean()):.0%}")
+                depth=data.get('depth',pd.DataFrame())
+                if not depth.empty and 'gsis_id' in depth:
+                    ranks=pd.to_numeric(depth[depth.gsis_id.eq(first.player_id)].pos_rank,errors='coerce').dropna()
+                    if not ranks.empty: context_bits.append(f"depth rank {int(ranks.min())}")
+            context_text=' / '.join(context_bits) if context_bits else 'Role context unavailable'
             rows=[]
             for _,r in player_props.iterrows():
                 if load_board_history:
@@ -287,7 +299,7 @@ def main():
                     lean,lean_detail='History not loaded','Use Load analysis for historical comparisons.'
                 side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Availability unknown'
                 rows.append(f'<div class="prop-row"><div class="prop-summary"><span>{esc(LABELS.get(r.market,r.market))}</span><strong>{r.line:g}</strong></div><div class="chips"><span class="chip chip-type">{esc(side_text)}</span><span class="chip chip-type">{esc(r.odds_type)}</span></div><div class="badge">{esc(lean)}</div><details class="prop-details"><summary>View analysis</summary><div class="muted">{esc(lean_detail)}<br>Historical comparison / not a validated prediction. Confirm availability in PrizePicks.</div></details></div>')
-            st.markdown(f'''<div class="card player-group"><div class="eyebrow">{esc(first.position)} / {esc(first.team)}</div><div class="player pick-title">{photo_markup(first.player,photo_url)}{esc(first.player)}</div><div class="muted">{esc(first.team)} {'vs' if first.home_away=='Home' else '@'} {esc(first.opponent)} / {first.game_time.tz_convert(timezone):%a %b %d, %I:%M %p} / roster: {esc(first.get('roster_status') or 'unknown')}</div>{''.join(rows)}</div>''',unsafe_allow_html=True)
+            st.markdown(f'''<div class="card player-group"><div class="eyebrow">{esc(first.position)} / {esc(first.team)}</div><div class="player pick-title">{photo_markup(first.player,photo_url)}{esc(first.player)}</div><div class="muted">{esc(first.team)} {'vs' if first.home_away=='Home' else '@'} {esc(first.opponent)} / {first.game_time.tz_convert(timezone):%a %b %d, %I:%M %p} / roster: {esc(first.get('roster_status') or 'unknown')}</div><div class='muted'>Role context: {esc(context_text)}</div>{''.join(rows)}</div>''',unsafe_allow_html=True)
         st.caption(f'{len(groups)} player matchups / {len(view)} matching lines. Each player stays together; evidence sorting ranks groups by their strongest historical prop.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
         st.download_button('Export verified board',export.to_csv(index=False),'verified_nfl_board.csv','text/csv',use_container_width=True)
