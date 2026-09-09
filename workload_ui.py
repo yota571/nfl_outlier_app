@@ -133,6 +133,9 @@ def render_board_results(url):
   try:
    rows=board_records(url)
    st.write(f'{len(rows)} recorded line observations')
+   completed_count=sum(r.get('actual') is not None for r in rows)
+   pending_count=len(rows)-completed_count
+   st.caption(f'Outcome coverage: {completed_count} completed / {pending_count} pending')
    if rows:
     try:
      latest=max(pd.to_datetime(r['board_fetched_at'],utc=True) for r in rows)
