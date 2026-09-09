@@ -41,6 +41,13 @@ def database_url():
 
 def esc(x): return html.escape(str(x or ''))
 
+def photo_markup(name, url):
+    fallback=f'https://ui-avatars.com/api/?name={quote_plus(str(name or "NFL Player"))}&background=17263a&color=ffffff&bold=true&size=96'
+    src=str(url or '').strip()
+    if not src.startswith(('https://','http://')): src=fallback
+    src=src.replace('http://','https://',1)
+    return f'<img class="pick-headshot" src="{esc(src)}" onerror="this.onerror=null;this.src=\'{esc(fallback)}\';" alt="">'
+
 @st.cache_data(ttl=86400,max_entries=24,show_spinner=False)
 def cached_sim(pbp,player_id,market,season,week):
     return simulate(pbp,player_id,market,season,week)
@@ -207,8 +214,7 @@ def main():
             side_class='chip-more' if side_chip.startswith('MORE') else 'chip-less'
             risk_html=''.join(f'<span class="chip chip-risk">{esc(flag)}</span>' for flag in risk[:2])
             photo_url=str(r.get('headshot_url') or '')
-            if photo_url.startswith('https://'): st.image(photo_url,width=52)
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="chips"><span class="chip {side_class}">{side_chip}</span><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="badge">{tier}</div><div class="muted">Projection {reference:.1f} / {source}{probability_text} / {result['games']} history games{snap_text}</div><div class="muted">Not a validated recommendation</div></div>''',unsafe_allow_html=True)
+            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{photo_markup(r.player, photo_url)}{esc(r.player)}</div><div class="muted">{esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="chips"><span class="chip {side_class}">{side_chip}</span><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="badge">{tier}</div><div class="muted">Projection {reference:.1f} / {source}{probability_text} / {result['games']} history games{snap_text}</div><div class="muted">Not a validated recommendation</div></div>''',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
         return
     if nav=='Props':
@@ -251,8 +257,7 @@ def main():
             roster_text=str(r.get('roster_status') or 'unknown')
             photo_value=r.get('headshot_url')
             photo_url=photo_value if isinstance(photo_value,str) and photo_value.startswith('https://') else ''
-            if photo_url: st.image(photo_url,width=52)
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)} / roster: {esc(roster_text)}</div><div class="badge">{esc(lean)}</div><div class="muted">{esc(lean_detail)}</div><div class="muted">Historical comparison / not a model pick</div></div>''',unsafe_allow_html=True)
+            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{photo_markup(r.player, photo_url)}{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)} / roster: {esc(roster_text)}</div><div class="badge">{esc(lean)}</div><div class="muted">{esc(lean_detail)}</div><div class="muted">Historical comparison / not a model pick</div></div>''',unsafe_allow_html=True)
         st.number_input('Page',1,pages,page,key='board_page')
         st.caption(f'{len(view)} matching lines. Sort uses historical sample size and distance from the offered line; it is research context, not a validated pick.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
