@@ -232,7 +232,7 @@ def main():
         return
     if nav=='Props':
         st.markdown('### NFL board')
-        st.caption('Cards show a historical MORE/LESS lean, not a validated prediction. Research contains experimental simulations. Confirm the exact line in PrizePicks.')
+        st.caption('Cards show a historical MORE/LESS lean, not a validated prediction. Search or filter first, then open a card for its evidence. Confirm the exact line in PrizePicks.')
         if not load_board_history:
             st.caption('History not loaded. Browse quickly or load analysis for historical comparisons.')
             def enable_board_history():
