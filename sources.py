@@ -37,6 +37,10 @@ def board_source():
         row['event_metadata_checked']=True
     return rows,stamp()
 
+@st.cache_data(ttl=86400,max_entries=1,show_spinner=False)
+def players_source():
+    return result('nflverse players',lambda:frame(nfl.load_players()))
+
 @st.cache_data(ttl=3600,max_entries=4,show_spinner=False)
 def foundation(season,week,include_history=False,include_usage=False):
     data,health={},[]
@@ -44,6 +48,10 @@ def foundation(season,week,include_history=False,include_usage=False):
         data[key],status=result('nflverse '+key,fn); health.append(status)
     if not data['rosters'].empty:
         data['rosters']['_name']=data['rosters'].full_name.map(normalize_name)
+        players,player_status=players_source(); health.append(player_status)
+        if not players.empty and 'gsis_id' in players and 'headshot_url' in players:
+            photo_map=players[['gsis_id','headshot_url']].dropna(subset=['gsis_id']).drop_duplicates('gsis_id')
+            data['rosters']=data['rosters'].drop(columns=['headshot_url'],errors='ignore').merge(photo_map,on='gsis_id',how='left')
     data['depth'],data['snaps']=pd.DataFrame(),pd.DataFrame()
     if include_usage:
         data['depth'],status=depth_source(season); health.append(status)
