@@ -72,12 +72,12 @@ def save_board_snapshot(database_url, board, fetched_at, stats=None, model_table
         values.append(snapshot_record(payload,kickoff,now))
     inserted=0
     with connect(database_url) as conn:
-        # Board imports can contain thousands of rows; allow the idempotent index writes
-        # enough time while still bounding lock waits from another collector run.
+        # Keep the hot collector path free of index DDL. Index creation needs an
+        # ACCESS EXCLUSIVE lock and can collide with Supabase maintenance or reads.
+        # Indexes are provisioned by the one-time setup/initialization path.
         conn.execute("SET LOCAL statement_timeout = '120s'")
         conn.execute("SET LOCAL lock_timeout = '15s'")
         conn.execute(DDL)
-        for statement in INDEX_DDL: conn.execute(statement)
         ensure_rls(conn, 'nfl_research_snapshots')
         conn.commit()
         for value in values:
@@ -91,7 +91,6 @@ def board_records(url):
     with connect(url) as conn:
         conn.execute("SET LOCAL statement_timeout = '15s'")
         conn.execute(DDL)
-        for statement in INDEX_DDL: conn.execute(statement)
         ensure_rls(conn, 'nfl_research_snapshots')
         conn.commit()
         conn.execute('CREATE TABLE IF NOT EXISTS nfl_board_outcomes (snapshot_id TEXT PRIMARY KEY REFERENCES nfl_research_snapshots(snapshot_id), actual DOUBLE PRECISION NOT NULL, recorded_at TIMESTAMPTZ NOT NULL)')
