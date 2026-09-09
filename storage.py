@@ -67,7 +67,7 @@ def save_board_snapshot(database_url, board, fetched_at, stats=None, model_table
             if len(recent)>=5: baselines['last5']={'mean':float(recent.mean()),'more':float((recent>r.line).mean()),'less':float((recent<r.line).mean()),'push':float((recent==r.line).mean()),'games':5,'version':'historical-last5-v1'}
             current=market_series(games[games.season.eq(season)],r.market).dropna() if season is not None else recent.iloc[:0]
             if len(current)>=5: baselines['season']={'mean':float(current.mean()),'more':float((current>r.line).mean()),'less':float((current<r.line).mean()),'push':float((current==r.line).mean()),'games':len(current),'version':'season-v1'}
-        payload={'player':r.player,'player_id':r.player_id,'game_id':r.game_id,'market':r.market,'projection_id':str(r.projection_id),'line':float(r.line),'odds_type':r.odds_type,'sides':sorted(r.sides),'board_fetched_at':str(fetched_at),'hypothetical':False,'model_status':'Board observation; no validated recommendation','model_version':'board-v3','baseline':baseline,'baselines':baselines,'model':model}
+        payload={'player':r.player,'player_id':r.player_id,'game_id':r.game_id,'market':r.market,'projection_id':str(r.projection_id),'line':float(r.line),'odds_type':r.odds_type,'sides':sorted(r.sides),'board_fetched_at':str(fetched_at),'hypothetical':False,'model_status':'Research estimate; not validated','model_version':'board-v3','baseline':baseline,'baselines':baselines,'model':model}
         values.append(snapshot_record(payload,kickoff,now))
     inserted=0
     with connect(database_url) as conn:
@@ -89,7 +89,7 @@ def board_records(url):
         conn.execute('CREATE TABLE IF NOT EXISTS nfl_board_outcomes (snapshot_id TEXT PRIMARY KEY REFERENCES nfl_research_snapshots(snapshot_id), actual DOUBLE PRECISION NOT NULL, recorded_at TIMESTAMPTZ NOT NULL)')
         ensure_rls(conn, 'nfl_board_outcomes')
         conn.commit()
-        rows=conn.execute("SELECT s.snapshot_id,s.payload,o.actual FROM nfl_research_snapshots s LEFT JOIN nfl_board_outcomes o USING(snapshot_id) WHERE s.model_version='board-v2' ORDER BY s.created_at DESC").fetchall()
+        rows=conn.execute("SELECT s.snapshot_id,s.payload,o.actual FROM nfl_research_snapshots s LEFT JOIN nfl_board_outcomes o USING(snapshot_id) WHERE s.model_version IN ('board-v2','board-v3') ORDER BY s.created_at DESC").fetchall()
     return [dict(**body,snapshot_id=key,actual=actual) for key,body,actual in rows]
 
 
