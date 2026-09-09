@@ -120,22 +120,33 @@ def main():
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
     if nav=='Top opportunities':
         st.subheader('Top opportunities')
-        st.caption('Ranked by historical distance from the offered line, with role stability context. Research only.')
+        st.caption('Ranked with tested workload forecasts when available, historical baselines otherwise. Probabilities remain uncalibrated.')
+        from workload_ui import assets
+        model_table,_=assets()
         ranked=[]
         for _,r in board.iterrows():
             games=data['stats'][data['stats'].player_id.eq(r.player_id)] if not data['stats'].empty else pd.DataFrame()
             result=summarize(games,r.market,r.line,n)
             side={'Over':'over','Under':'under'}.get(result['side']) if result else None
             if not result or result['games']<5 or side not in r.sides: continue
+            model=None
+            if r.market in ('targets','rush_att'):
+                from opportunity import forecast
+                kind='targets' if r.market=='targets' else 'carries'
+                model=forecast(model_table,r.player_id,r.team,kind,int(season),int(week))
+            reference=float(model['mean']) if model else float(result['baseline'])
+            model_edge=(reference-float(r.line))/max(float(r.line),1.0)
             risk=[]
             if not data['snaps'].empty and pd.notna(r.get('pfr_id')):
                 recent=data['snaps'][(data['snaps'].pfr_player_id.eq(r.pfr_id)) & data['snaps'].game_type.eq('REG')].sort_values(['season','week'],ascending=False).head(n)
                 if not recent.empty and recent.offense_pct.mean()<.55: risk.append('low snap share')
-            score=abs(result['edge'])/max(float(r.line),1)
-            ranked.append((score,r,result,risk))
-        for score,r,result,risk in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
+            score=abs(model_edge) * (.85 if risk else 1.0)
+            ranked.append((score,r,result,model,risk,reference))
+        for score,r,result,model,risk,reference in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
+            label='MORE / OVER' if result['side']=='Over' else 'LESS / UNDER'
+            source='workload model' if model else 'historical baseline'
             flags=' / risk: '+', '.join(risk) if risk else ''
-            st.write(f"{r.player} / {LABELS.get(r.market,r.market)} {r.line:g} / {result['side']} / average {result['baseline']:.1f} across {result['games']} games{flags}")
+            st.write(f"{r.player} / {LABELS.get(r.market,r.market)} {r.line:g} / {label} / projection {reference:.1f} / {source} / {result['games']} history games{flags}")
         if not ranked: st.info('No props have enough history and an available historical side.')
         return
     if nav=='Props':
