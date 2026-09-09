@@ -154,6 +154,9 @@ def main():
                 if not recent.empty:
                     snap_share=float(recent.offense_pct.mean())
                     if snap_share<.55: risk.append('low snap share')
+            roster_state=str(r.get('roster_status') or '').strip().upper()
+            if roster_state and roster_state not in ('ACT','ACTIVE'):
+                risk.append(f'roster status {roster_state}')
             if not data['depth'].empty and pd.notna(r.get('player_id')):
                 depth_rows=data['depth'][data['depth'].gsis_id.eq(r.player_id)]
                 if not depth_rows.empty and pd.to_numeric(depth_rows.pos_rank,errors='coerce').min()>1: risk.append('not first on depth chart')
