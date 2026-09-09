@@ -23,6 +23,11 @@ class RegressionTests(unittest.TestCase):
             self.assertEqual(summarize(self.games, 'receptions', 1.5, 10, odds)['side'], 'Over')
         self.assertEqual(summarize(self.games, 'receptions', 3.5, 10, 'standard')['side'], 'Under')
 
+    def test_more_only_historical_lean_never_suggests_under(self):
+        label, detail = historical_lean(self.games, 'receptions', 3.5, 10, ('over',))
+        self.assertEqual(label, 'PASS / Lean side unavailable')
+        self.assertIn('observed side rate', detail)
+
     def test_pushes(self):
         r=summarize(self.games, 'receptions', 2, 7)
         self.assertEqual(r['push_rate'],1)
