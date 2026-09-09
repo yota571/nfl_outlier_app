@@ -82,7 +82,7 @@ def main():
         except Exception as exc:
             board=pd.DataFrame(); skips={}; fetched=stamp()
             health.append(dict(source='PrizePicks',status='Unavailable',checked_at=fetched,error=str(exc)))
-        data,source_health=foundation(int(season),int(week),include_history=nav in ('Props','Player','Research'),include_usage=nav in ('Player','Top opportunities')); health.extend(source_health)
+        data,source_health=foundation(int(season),int(week),include_history=nav in ('Props','Top opportunities','Player','Research'),include_usage=nav in ('Player','Top opportunities')); health.extend(source_health)
     issues=[]
     if not board.empty:
         board,issues=attach_games(board,data['schedule'],season,week)
