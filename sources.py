@@ -49,8 +49,9 @@ def foundation(season,week,include_history=False,include_usage=False):
     if not data['rosters'].empty:
         data['rosters']['_name']=data['rosters'].full_name.map(normalize_name)
         players,player_status=players_source(); health.append(player_status)
-        if not players.empty and 'gsis_id' in players and 'headshot_url' in players:
-            photo_map=players[['gsis_id','headshot_url']].dropna(subset=['gsis_id']).drop_duplicates('gsis_id')
+        photo_col=next((name for name in ('headshot_url','headshot','headshot_image') if name in players.columns),None)
+        if not players.empty and 'gsis_id' in players and photo_col:
+            photo_map=players[['gsis_id',photo_col]].rename(columns={photo_col:'headshot_url'}).dropna(subset=['gsis_id']).drop_duplicates('gsis_id')
             data['rosters']=data['rosters'].drop(columns=['headshot_url'],errors='ignore').merge(photo_map,on='gsis_id',how='left')
     data['depth'],data['snaps']=pd.DataFrame(),pd.DataFrame()
     if include_usage:
