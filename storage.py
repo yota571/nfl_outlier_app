@@ -91,6 +91,7 @@ def board_records(url):
     with connect(url) as conn:
         conn.execute("SET LOCAL statement_timeout = '15s'")
         conn.execute(DDL)
+        for statement in INDEX_DDL: conn.execute(statement)
         ensure_rls(conn, 'nfl_research_snapshots')
         conn.commit()
         conn.execute('CREATE TABLE IF NOT EXISTS nfl_board_outcomes (snapshot_id TEXT PRIMARY KEY REFERENCES nfl_research_snapshots(snapshot_id), actual DOUBLE PRECISION NOT NULL, recorded_at TIMESTAMPTZ NOT NULL)')
