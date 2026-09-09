@@ -121,7 +121,9 @@ def history(games, market, line, n):
 
 
 def historical_lean(games, market, line, n, sides):
-    result = summarize(games, market, line, n)
+    # Treat a one-sided feed as More-only before deriving the historical lean.
+    odds_type = 'demon' if tuple(sides or ()) == ('over',) else 'standard'
+    result = summarize(games, market, line, n, odds_type)
     if result is None:
         return 'NO HISTORY', 'No matched historical sample'
     rate = result['over_rate'] if result['side'] == 'Over' else result['under_rate'] if result['side'] == 'Under' else 0.0
