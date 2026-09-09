@@ -26,7 +26,8 @@ header[data-testid="stHeader"] {background:#0b1018}
 .line {font-size:32px;font-weight:750;color:#f5f8fc;margin-top:8px}
 .badge {color:#e8c78a;font-size:12px;font-weight:650;margin-top:8px}
 .chips {display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chip {display:inline-block;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:700;letter-spacing:.02em}.chip-more {background:#123e39;color:#78e1cf}.chip-less {background:#26375a;color:#a9c7ff}.chip-type {background:#2b2f3d;color:#d8dce5}.chip-risk {background:#4a3020;color:#ffd18a}
-.pick-headshot {width:42px;height:42px;border-radius:10px;object-fit:cover;vertical-align:middle;margin-right:9px;border:1px solid #38506c}.pick-title {display:flex;align-items:center}
+.pick-headshot {width:56px;height:56px;border-radius:10px;object-fit:cover;vertical-align:middle;margin-right:9px;border:1px solid #38506c}.pick-title {display:flex;align-items:center}
+.prop-row {border-top:1px solid #26364b;margin-top:14px;padding-top:14px}.prop-summary {display:flex;align-items:center;justify-content:space-between;gap:12px}.prop-summary strong {font-size:26px}.prop-details summary {cursor:pointer;min-height:44px;display:flex;align-items:center;color:#9babc0;font-size:13px}.prop-details .muted {padding-bottom:8px}
 button {min-height:44px} [data-testid="stRadio"] {background:#101925;border-radius:12px;padding:8px}
 [data-testid="stRadio"] {position:fixed;bottom:0;left:0;right:0;max-width:820px;margin:auto;z-index:999;border:1px solid #26364b;padding-bottom:max(8px,env(safe-area-inset-bottom))}
 [data-testid="stRadio"] label p {font-size:13px}
@@ -99,7 +100,7 @@ def main():
         season=st.number_input('Season',2000,now.year+1,now.year if now.month>=3 else now.year-1)
         week=st.number_input('Week',1,18,1)
         n=st.slider('Historical games',5,25,10)
-        load_board_history=st.checkbox('Load historical context on the Props board (slower)',value=False)
+        load_board_history=st.checkbox('Load historical context on the Props board (slower)',value=False,key='board_history')
         timezone=st.selectbox('Timezone',['America/Chicago','America/New_York','America/Denver','America/Los_Angeles','UTC'])
         upload=st.file_uploader('Optional board JSON',type=['json'])
         if st.button('Refresh sources',use_container_width=True):
@@ -220,7 +221,11 @@ def main():
     if nav=='Props':
         st.markdown('### NFL board')
         st.caption('Cards show a historical MORE/LESS lean, not a validated prediction. Research contains experimental simulations. Confirm the exact line in PrizePicks.')
-        if not load_board_history: st.caption('Fast board mode: historical context is off. Enable it in Slate & settings when you want history on every card.')
+        if not load_board_history:
+            st.caption('History not loaded. Browse quickly or load analysis for historical comparisons.')
+            def enable_board_history():
+                st.session_state['board_history']=True
+            st.button('Load analysis',on_click=enable_board_history,use_container_width=True)
         search=st.text_input('Find a player',placeholder='Search player name')
         with st.expander('Filter position, market & line type'):
             position=st.selectbox('Position',['All']+sorted(board.position.dropna().unique()))
@@ -246,20 +251,30 @@ def main():
             view=view.sort_values(['_evidence_score','game_time','player'],ascending=[False,True,True])
         else:
             view=view.sort_values(['game_time','player','market','line'])
-        pages=max(1,(len(view)+11)//12)
-        page=min(st.session_state.get('board_page',1),pages)
+        # Keep a player's complete matchup together, retaining the sorted order
+        # of the first (best-ranked) prop in each group.
+        groups=list(view.groupby(['player_id','game_id'],sort=False))
+        pages=max(1,(len(groups)+5)//6)
+        page_key='grouped_board_page'
+        st.session_state[page_key]=max(1,min(st.session_state.get(page_key,1),pages))
+        page=st.number_input('Player page',1,pages,key=page_key)
         if view.empty: st.info('No lines match these filters.')
-        for _,r in view.iloc[(page-1)*12:page*12].iterrows():
+        for _,player_props in groups[(page-1)*6:page*6]:
+            first=player_props.iloc[0]
+            photo_value=first.get('headshot_url')
+            photo_url=photo_value if isinstance(photo_value,str) else ''
             stats=data['stats']
-            games=stats[stats.player_id.eq(r.player_id)] if not stats.empty else pd.DataFrame()
-            lean,lean_detail=historical_lean(games,r.market,r.line,n,r.sides)
-            side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Side availability unknown'
-            roster_text=str(r.get('roster_status') or 'unknown')
-            photo_value=r.get('headshot_url')
-            photo_url=photo_value if isinstance(photo_value,str) and photo_value.startswith('https://') else ''
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{photo_markup(r.player, photo_url)}{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)} / roster: {esc(roster_text)}</div><div class="badge">{esc(lean)}</div><div class="muted">{esc(lean_detail)}</div><div class="muted">Historical comparison / not a model pick</div></div>''',unsafe_allow_html=True)
-        st.number_input('Page',1,pages,page,key='board_page')
-        st.caption(f'{len(view)} matching lines. Sort uses historical sample size and distance from the offered line; it is research context, not a validated pick.')
+            games=stats[stats.player_id.eq(first.player_id)] if not stats.empty else pd.DataFrame()
+            rows=[]
+            for _,r in player_props.iterrows():
+                if load_board_history:
+                    lean,lean_detail=historical_lean(games,r.market,r.line,n,r.sides)
+                else:
+                    lean,lean_detail='History not loaded','Use Load analysis for historical comparisons.'
+                side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Availability unknown'
+                rows.append(f'<div class="prop-row"><div class="prop-summary"><span>{esc(LABELS.get(r.market,r.market))}</span><strong>{r.line:g}</strong></div><div class="chips"><span class="chip chip-type">{esc(side_text)}</span><span class="chip chip-type">{esc(r.odds_type)}</span></div><div class="badge">{esc(lean)}</div><details class="prop-details"><summary>View analysis</summary><div class="muted">{esc(lean_detail)}<br>Historical comparison / not a validated prediction. Confirm availability in PrizePicks.</div></details></div>')
+            st.markdown(f'''<div class="card player-group"><div class="eyebrow">{esc(first.position)} / {esc(first.team)}</div><div class="player pick-title">{photo_markup(first.player,photo_url)}{esc(first.player)}</div><div class="muted">{esc(first.team)} {'vs' if first.home_away=='Home' else '@'} {esc(first.opponent)} / {first.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div>{''.join(rows)}</div>''',unsafe_allow_html=True)
+        st.caption(f'{len(groups)} player matchups / {len(view)} matching lines. Each player stays together; evidence sorting ranks groups by their strongest historical prop.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
         st.download_button('Export verified board',export.to_csv(index=False),'verified_nfl_board.csv','text/csv',use_container_width=True)
         return
