@@ -137,6 +137,7 @@ def main():
             reference=float(model['mean']) if model else float(result['baseline'])
             model_edge=(reference-float(r.line))/max(float(r.line),1.0)
             direction='Over' if model_edge>0 else 'Under' if model_edge<0 else result['side']
+            if model and direction.lower() not in r.sides: continue
             risk=[]
             if model and direction != result['side']:
                 risk.append('model/history disagreement')
