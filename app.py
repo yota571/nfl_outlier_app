@@ -51,11 +51,24 @@ def verified_players(board,rosters,raw_by_id):
     for row in board.to_dict('records'):
         identity,reason=resolve_player(row,rosters)
         if reason: issues.append(f"{row['player']}: {reason}"); continue
-        headshot=next((identity.get(name) for name in ('headshot_url','headshot','headshot_url_https') if isinstance(identity.get(name),str) and identity.get(name).startswith('https://')),None)
+        # Keep both nflverse/NFL URLs and ESPN fallback photos. Some feeds return
+        # http URLs or numeric ESPN IDs as floats, so normalize before rendering.
+        headshot=None
+        for name in ('headshot_url','headshot','headshot_url_https'):
+            value=identity.get(name)
+            if pd.notna(value):
+                candidate=str(value).strip()
+                if candidate.startswith(('https://','http://')):
+                    headshot=candidate.replace('http://','https://',1)
+                    break
         if not headshot:
-            espn_id=identity.get('espn_id')
-            if espn_id is not None and str(espn_id).strip() not in ('','nan','None'):
-                headshot=f'https://a.espncdn.com/i/headshots/nfl/players/full/{str(espn_id).strip()}.png'
+            espn_raw=identity.get('espn_id')
+            if pd.notna(espn_raw):
+                espn_text=str(espn_raw).strip()
+                if espn_text.endswith('.0'):
+                    espn_text=espn_text[:-2]
+                if espn_text.isdigit():
+                    headshot=f'https://a.espncdn.com/i/headshots/nfl/players/full/{espn_text}.png'
         row.update(player_id=identity['gsis_id'],position=identity['position'],headshot_url=headshot,pfr_id=identity.get('pfr_id'),roster_status=identity.get('status'),team_verified=True)
         original=raw_by_id.get(str(row.get('projection_id')), {})
         row['sides']=allowed_sides(row['odds_type'],original.get('allowed_wager_types'))
