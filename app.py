@@ -192,7 +192,20 @@ def main():
         if position!='All': view=view[view.position.eq(position)]
         if market!='All': view=view[view.market.eq(market)]
         if line_type!='All': view=view[view.odds_type.str.lower().eq(line_type.lower())]
-        view=view.sort_values(['game_time','player','market','line'])
+        sort_order=st.selectbox('Sort props by',['Best available evidence','Kickoff time'],index=0)
+        if sort_order=='Best available evidence':
+            stats_for_sort=data['stats']
+            def evidence_score(row):
+                games=stats_for_sort[stats_for_sort.player_id.eq(row.player_id)] if not stats_for_sort.empty else pd.DataFrame()
+                result=summarize(games,row.market,row.line,n)
+                if not result or result['games']<5: return -1.0
+                edge=abs(float(result['baseline'])-float(row.line))/max(float(row.line),1.0)
+                return float(result['games']) + min(edge,2.0)*5.0
+            view=view.copy()
+            view['_evidence_score']=view.apply(evidence_score,axis=1)
+            view=view.sort_values(['_evidence_score','game_time','player'],ascending=[False,True,True])
+        else:
+            view=view.sort_values(['game_time','player','market','line'])
         pages=max(1,(len(view)+11)//12)
         page=min(st.session_state.get('board_page',1),pages)
         if view.empty: st.info('No lines match these filters.')
@@ -203,7 +216,7 @@ def main():
             side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Side availability unknown'
             st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} {'vs' if r.home_away=='Home' else '@'} {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="muted">Feed sides: {esc(side_text)}</div><div class="badge">{esc(lean)}</div><div class="muted">{esc(lean_detail)}</div><div class="muted">Historical comparison / not a model pick</div></div>''',unsafe_allow_html=True)
         st.number_input('Page',1,pages,page,key='board_page')
-        st.caption(f'{len(view)} matching lines. Sorted by kickoff and player, not historical hit rate.')
+        st.caption(f'{len(view)} matching lines. Sort uses historical sample size and distance from the offered line; it is research context, not a validated pick.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
         st.download_button('Export verified board',export.to_csv(index=False),'verified_nfl_board.csv','text/csv',use_container_width=True)
         return
