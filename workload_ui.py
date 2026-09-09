@@ -133,6 +133,14 @@ def render_board_results(url):
   try:
    rows=board_records(url)
    st.write(f'{len(rows)} recorded line observations')
+   if rows:
+    try:
+     latest=max(pd.to_datetime(r['board_fetched_at'],utc=True) for r in rows)
+     age=max(0.0,(pd.Timestamp.now(tz='UTC')-latest).total_seconds()/60)
+     freshness='Fresh' if age<=30 else 'Aging' if age<=90 else 'Stale'
+     st.caption(f'Latest all-prop snapshot: {latest:%b %d, %I:%M %p UTC} / {freshness} ({age:.0f} minutes ago)')
+    except (KeyError,TypeError,ValueError):
+     st.caption('Snapshot freshness is unavailable for the current records.')
    st.caption('Collection runs when the live board loads. Repeat loads of the same fetched board are deduplicated. New source snapshots preserve line movement. Uploaded boards are excluded.')
    if st.button('Update all-prop outcomes'):
     import nflreadpy as nfl
