@@ -58,7 +58,13 @@ def save_board_snapshot(database_url, board, fetched_at, stats=None, model_table
             if pred:
                 samples,_=sample_counts(pred,f'{r.player_id}|{r.game_id}|{kind}')
                 model={'mean':float(pred['mean']),'more':float((samples>r.line).mean()),'less':float((samples<r.line).mean()),'push':float((samples==r.line).mean()),'version':VERSION,'status':'Uncalibrated probabilities'}
-        payload={'player':r.player,'player_id':r.player_id,'game_id':r.game_id,'market':r.market,'projection_id':str(r.projection_id),'line':float(r.line),'odds_type':r.odds_type,'sides':sorted(r.sides),'board_fetched_at':str(fetched_at),'hypothetical':False,'model_status':'Board observation; no validated recommendation','model_version':'board-v3','baseline':baseline,'baselines':{'last10':baseline} if baseline else {},'model':model}
+        baselines={'last10':baseline} if baseline else {}
+        if stats is not None and not stats.empty:
+            recent=market_series(games,r.market).dropna().head(5)
+            if len(recent)>=5: baselines['last5']={'mean':float(recent.mean()),'more':float((recent>r.line).mean()),'less':float((recent<r.line).mean()),'push':float((recent==r.line).mean()),'games':5,'version':'historical-last5-v1'}
+            current=market_series(games[games.season.eq(season)],r.market).dropna() if season is not None else recent.iloc[:0]
+            if len(current)>=5: baselines['season']={'mean':float(current.mean()),'more':float((current>r.line).mean()),'less':float((current<r.line).mean()),'push':float((current==r.line).mean()),'games':len(current),'version':'season-v1'}
+        payload={'player':r.player,'player_id':r.player_id,'game_id':r.game_id,'market':r.market,'projection_id':str(r.projection_id),'line':float(r.line),'odds_type':r.odds_type,'sides':sorted(r.sides),'board_fetched_at':str(fetched_at),'hypothetical':False,'model_status':'Board observation; no validated recommendation','model_version':'board-v3','baseline':baseline,'baselines':baselines,'model':model}
         values.append(snapshot_record(payload,kickoff,now))
     inserted=0
     with connect(database_url) as conn:
