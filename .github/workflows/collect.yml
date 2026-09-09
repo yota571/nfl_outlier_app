@@ -28,6 +28,8 @@ jobs:
         with:
           python-version: '3.13'
       - run: pip install -r requirements.txt
+      - name: Validate application modules
+        run: python -m py_compile app.py collector.py core.py opportunity.py storage.py tracking.py workload_ui.py
       - name: Collect verified board
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
