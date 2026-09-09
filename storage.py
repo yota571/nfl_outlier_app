@@ -87,6 +87,7 @@ def save_board_snapshot(database_url, board, fetched_at, stats=None, model_table
 def board_records(url):
     from tracking import connect
     with connect(url) as conn:
+        conn.execute("SET LOCAL statement_timeout = '15s'")
         conn.execute(DDL)
         ensure_rls(conn, 'nfl_research_snapshots')
         conn.commit()
