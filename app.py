@@ -24,7 +24,7 @@ header[data-testid="stHeader"] {background:#0b1018}
 .player {display:flex;align-items:center;gap:10px;font-size:22px;font-weight:750;line-height:1.25;margin:8px 0}.player .pick-headshot{flex:0 0 56px;margin-right:0}
 .muted {color:#9babc0;font-size:13px;line-height:1.6}
 .line {font-size:32px;font-weight:750;color:#f5f8fc;margin-top:8px}
-.badge {color:#e8c78a;font-size:12px;font-weight:650;margin-top:8px}
+.badge {display:inline-flex;align-items:center;width:max-content;color:#e8c78a;background:#2b2f3d;border:1px solid #4b5363;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:650;margin-top:8px}
 .chips {display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chip {display:inline-block;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:700;letter-spacing:.02em}.chip-more {background:#123e39;color:#78e1cf}.chip-less {background:#26375a;color:#a9c7ff}.chip-type {background:#2b2f3d;color:#d8dce5}.chip-risk {background:#4a3020;color:#ffd18a}
 .pick-headshot {width:56px;height:56px;border-radius:10px;object-fit:cover;vertical-align:middle;margin-right:9px;border:1px solid #38506c}.pick-title {display:flex;align-items:center}
 .prop-row {border-top:1px solid #26364b;margin-top:14px;padding-top:14px}.prop-summary {display:flex;align-items:center;justify-content:space-between;gap:12px}.prop-summary strong {font-size:26px}.prop-details summary {cursor:pointer;min-height:44px;display:flex;align-items:center;color:#9babc0;font-size:13px}.prop-details .muted {padding-bottom:8px}
