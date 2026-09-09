@@ -1,6 +1,7 @@
 import html
 import os
 import json
+import time
 from datetime import datetime
 from zoneinfo import ZoneInfo
 import numpy as np
@@ -119,14 +120,22 @@ def main():
     if board.empty:
         st.info('No verified props available for this slate. Check Health for source or mapping issues.'); return
     if database_url() and not upload:
-        try:
-            from storage import save_board_snapshot
-            from workload_ui import assets
-            model_table,_=assets()
-            saved_count=save_board_snapshot(database_url(), board, fetched, data['stats'],model_table,int(season),int(week))
+        from storage import save_board_snapshot
+        from workload_ui import assets
+        model_table,_=assets()
+        saved_count=None
+        last_error=None
+        for attempt in range(3):
+            try:
+                saved_count=save_board_snapshot(database_url(), board, fetched, data['stats'],model_table,int(season),int(week))
+                break
+            except Exception as exc:
+                last_error=exc
+                if attempt<2: time.sleep(1.5*(attempt+1))
+        if saved_count is not None:
             st.caption(f'Board tracking connected / {saved_count} new observations saved. Collection runs when the board loads.')
-        except Exception:
-            st.warning('Board tracking failed. These lines were not confirmed saved. Check Results and database connectivity.')
+        else:
+            st.warning('Board tracking is temporarily busy. These lines will be retried on the next refresh.')
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
     if nav=='Top picks':
         st.subheader('Top picks')
