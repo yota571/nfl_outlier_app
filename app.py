@@ -24,6 +24,7 @@ header[data-testid="stHeader"] {background:#0b1018}
 .muted {color:#9babc0;font-size:13px;line-height:1.6}
 .line {font-size:32px;font-weight:750;color:#f5f8fc;margin-top:8px}
 .badge {color:#e8c78a;font-size:12px;font-weight:650;margin-top:8px}
+.chips {display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chip {display:inline-block;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:700;letter-spacing:.02em}.chip-more {background:#123e39;color:#78e1cf}.chip-less {background:#26375a;color:#a9c7ff}.chip-type {background:#2b2f3d;color:#d8dce5}.chip-risk {background:#4a3020;color:#ffd18a}
 button {min-height:44px} [data-testid="stRadio"] {background:#101925;border-radius:12px;padding:8px}
 [data-testid="stRadio"] {position:fixed;bottom:0;left:0;right:0;max-width:820px;margin:auto;z-index:999;border:1px solid #26364b;padding-bottom:max(8px,env(safe-area-inset-bottom))}
 [data-testid="stRadio"] label p {font-size:13px}
@@ -178,7 +179,10 @@ def main():
             snap_text=f' / recent snaps {snap_share:.0%}' if snap_share is not None else ''
             roster=str(r.get('roster_status') or 'unknown')
             tier='STRONGER RESEARCH SUPPORT' if result['games']>=10 and not risk else 'RESEARCH WATCH'
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="badge">{label} / {tier}</div><div class="muted">Projection {reference:.1f} / {source}{probability_text} / {result['games']} history games / roster {esc(roster)}{snap_text}{flags}</div><div class="muted">Not a validated recommendation</div></div>''',unsafe_allow_html=True)
+            side_chip='MORE / OVER' if label.startswith('MORE') else 'LESS / UNDER'
+            side_class='chip-more' if side_chip.startswith('MORE') else 'chip-less'
+            risk_html=''.join(f'<span class="chip chip-risk">{esc(flag)}</span>' for flag in risk[:2])
+            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{esc(r.player)}</div><div class="muted">{esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="chips"><span class="chip {side_class}">{side_chip}</span><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="badge">{tier}</div><div class="muted">Projection {reference:.1f} / {source}{probability_text} / {result['games']} history games{snap_text}</div><div class="muted">Not a validated recommendation</div></div>''',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
         return
     if nav=='Props':
