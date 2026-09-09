@@ -10,6 +10,7 @@ DDL='''CREATE TABLE IF NOT EXISTS nfl_research_snapshots (
  model_version TEXT NOT NULL,
  payload JSONB NOT NULL
 )'''
+INDEX_DDL=("CREATE INDEX IF NOT EXISTS nfl_research_snapshots_created_idx ON public.nfl_research_snapshots (created_at DESC)","CREATE INDEX IF NOT EXISTS nfl_research_snapshots_kickoff_idx ON public.nfl_research_snapshots (kickoff)")
 
 def snapshot_record(payload, kickoff, now=None):
     now=now or datetime.now(timezone.utc)
@@ -76,6 +77,7 @@ def save_board_snapshot(database_url, board, fetched_at, stats=None, model_table
         conn.execute("SET LOCAL statement_timeout = '120s'")
         conn.execute("SET LOCAL lock_timeout = '15s'")
         conn.execute(DDL)
+        for statement in INDEX_DDL: conn.execute(statement)
         ensure_rls(conn, 'nfl_research_snapshots')
         conn.commit()
         for value in values:
