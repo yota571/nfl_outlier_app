@@ -135,8 +135,9 @@ def main():
         from workload_ui import assets
         model_table,_=assets()
         ranked=[]
+        stats_by_player={pid:grp for pid,grp in data['stats'].groupby('player_id')} if not data['stats'].empty else {}
         for _,r in board.iterrows():
-            games=data['stats'][data['stats'].player_id.eq(r.player_id)] if not data['stats'].empty else pd.DataFrame()
+            games=stats_by_player.get(r.player_id,pd.DataFrame())
             result=summarize(games,r.market,r.line,n)
             side={'Over':'over','Under':'under'}.get(result['side']) if result else None
             if not result or result['games']<5 or side not in r.sides: continue
