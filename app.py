@@ -67,7 +67,7 @@ def main():
         upload=st.file_uploader('Optional board JSON',type=['json'])
         if st.button('Refresh sources',use_container_width=True):
             board_source.clear(); foundation.clear(); play_history.clear(); depth_source.clear(); snap_source.clear(); cached_sim.clear()
-    nav=st.radio('Navigate',['Props','Player','Research','Results','Health'],horizontal=True,label_visibility='collapsed')
+    nav=st.radio('Navigate',['Props','Top opportunities','Player','Research','Results','Health'],horizontal=True,label_visibility='collapsed')
     if nav=='Results':
         from workload_ui import render_results
         render_results(database_url())
@@ -82,7 +82,7 @@ def main():
         except Exception as exc:
             board=pd.DataFrame(); skips={}; fetched=stamp()
             health.append(dict(source='PrizePicks',status='Unavailable',checked_at=fetched,error=str(exc)))
-        data,source_health=foundation(int(season),int(week),include_history=nav in ('Props','Player','Research'),include_usage=nav=='Player'); health.extend(source_health)
+        data,source_health=foundation(int(season),int(week),include_history=nav in ('Props','Player','Research'),include_usage=nav in ('Player','Top opportunities')); health.extend(source_health)
     issues=[]
     if not board.empty:
         board,issues=attach_games(board,data['schedule'],season,week)
@@ -118,6 +118,19 @@ def main():
         except Exception:
             st.warning('Board tracking failed. These lines were not confirmed saved. Check Results and database connectivity.')
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
+    if nav=='Top opportunities':
+        st.subheader('Top opportunities')
+        st.caption('Research candidates ranked by historical distance from the offered line; not validated recommendations.')
+        ranked=[]
+        for _,r in board.iterrows():
+            games=data['stats'][data['stats'].player_id.eq(r.player_id)] if not data['stats'].empty else pd.DataFrame()
+            result=summarize(games,r.market,r.line,n)
+            side={'Over':'over','Under':'under'}.get(result['side']) if result else None
+            if result and result['games']>=5 and side in r.sides: ranked.append((abs(result['edge'])/max(float(r.line),1),r,result))
+        for score,r,result in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
+            st.write(f"{r.player} / {LABELS.get(r.market,r.market)} {r.line:g} / {result['side']} / average {result['baseline']:.1f} across {result['games']} games")
+        if not ranked: st.info('No props have enough history and an available historical side.')
+        return
     if nav=='Props':
         st.markdown('### NFL board')
         st.caption('Cards show a historical MORE/LESS lean, not a validated prediction. Research contains experimental simulations. Confirm the exact line in PrizePicks.')
