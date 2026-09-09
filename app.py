@@ -51,7 +51,8 @@ def verified_players(board,rosters,raw_by_id):
     for row in board.to_dict('records'):
         identity,reason=resolve_player(row,rosters)
         if reason: issues.append(f"{row['player']}: {reason}"); continue
-        row.update(player_id=identity['gsis_id'],position=identity['position'],headshot_url=identity.get('headshot_url'),pfr_id=identity.get('pfr_id'),roster_status=identity.get('status'),team_verified=True)
+        headshot=identity.get('headshot_url') or identity.get('headshot') or identity.get('headshot_url_https')
+        row.update(player_id=identity['gsis_id'],position=identity['position'],headshot_url=headshot,pfr_id=identity.get('pfr_id'),roster_status=identity.get('status'),team_verified=True)
         original=raw_by_id.get(str(row.get('projection_id')), {})
         row['sides']=allowed_sides(row['odds_type'],original.get('allowed_wager_types'))
         verified.append(row)
