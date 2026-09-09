@@ -21,7 +21,7 @@ h1 {font-size:2rem!important;letter-spacing:-.06rem} h3 {font-size:1.1rem!import
 header[data-testid="stHeader"] {background:#0b1018}
 .card {background:#141e2c;border:1px solid #26364b;border-radius:18px;padding:18px;margin:12px 0}
 .eyebrow {font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#77dac6;font-weight:700}
-.player {font-size:22px;font-weight:750;line-height:1.25;margin:8px 0}
+.player {display:flex;align-items:center;gap:10px;font-size:22px;font-weight:750;line-height:1.25;margin:8px 0}.player .pick-headshot{flex:0 0 56px;margin-right:0}
 .muted {color:#9babc0;font-size:13px;line-height:1.6}
 .line {font-size:32px;font-weight:750;color:#f5f8fc;margin-top:8px}
 .badge {color:#e8c78a;font-size:12px;font-weight:650;margin-top:8px}
@@ -29,7 +29,7 @@ header[data-testid="stHeader"] {background:#0b1018}
 .pick-headshot {width:56px;height:56px;border-radius:10px;object-fit:cover;vertical-align:middle;margin-right:9px;border:1px solid #38506c}.pick-title {display:flex;align-items:center}
 .prop-row {border-top:1px solid #26364b;margin-top:14px;padding-top:14px}.prop-summary {display:flex;align-items:center;justify-content:space-between;gap:12px}.prop-summary strong {font-size:26px}.prop-details summary {cursor:pointer;min-height:44px;display:flex;align-items:center;color:#9babc0;font-size:13px}.prop-details .muted {padding-bottom:8px}
 button {min-height:44px;border-radius:10px!important} button:focus-visible,input:focus-visible,select:focus-visible,[role="combobox"]:focus-visible{outline:3px solid #77dac6!important;outline-offset:2px} [data-testid="stRadio"] {background:#101925;border-radius:12px;padding:8px}
-[data-testid="stRadio"] {position:fixed;bottom:0;left:0;right:0;max-width:820px;margin:auto;z-index:999;border:1px solid #26364b;padding-bottom:max(8px,env(safe-area-inset-bottom))}
+[data-testid="stRadio"] {position:fixed;bottom:0;left:0;right:0;max-width:820px;margin:auto;z-index:999;border:1px solid #26364b;box-shadow:0 -8px 24px rgba(0,0,0,.28);backdrop-filter:blur(12px);padding-bottom:max(8px,env(safe-area-inset-bottom))}
 [data-testid="stRadio"] label p {font-size:13px;margin:0} [data-testid="stRadio"] label:has(input:checked) p{color:#77dac6;font-weight:700} [data-testid="stRadio"] label:has(input:checked){background:#17263a;border-radius:9px}
 @media(max-width:640px){.block-container{padding:1rem .8rem 6.5rem} [data-testid="stTextInput"] input,[data-testid="stSelectbox"]>div,[data-testid="stNumberInput"] input{min-height:46px} h1{font-size:1.65rem!important;margin-bottom:.25rem}.player{font-size:20px}.card{padding:15px;border-radius:16px}.muted{font-size:12px;line-height:1.45}.line{font-size:30px}.prop-summary strong{font-size:24px}[data-testid="stRadio"] div[role="radiogroup"]{gap:4px;justify-content:space-around}[data-testid="stRadio"] label{padding:3px 1px}.stApp{overflow-x:hidden}}
 </style>''',unsafe_allow_html=True)
