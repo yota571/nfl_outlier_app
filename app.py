@@ -22,7 +22,7 @@ header[data-testid="stHeader"] {background:#0b1018}
 .card {background:#141e2c;border:1px solid #26364b;border-radius:18px;padding:18px;margin:12px 0;box-shadow:0 6px 18px rgba(0,0,0,.14);transition:transform .15s ease,box-shadow .15s ease}@media(hover:hover){.card:hover{transform:translateY(-1px);box-shadow:0 9px 24px rgba(0,0,0,.22)}}[data-testid="stExpander"]{border:1px solid #26364b;border-radius:12px;overflow:hidden;background:#0f1622}[data-testid="stExpander"] summary{min-height:44px;padding:0 12px}
 .eyebrow {font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:#77dac6;font-weight:700}
 .player {display:flex;align-items:center;gap:10px;font-size:22px;font-weight:750;line-height:1.25;margin:8px 0}.player .pick-headshot{flex:0 0 56px;margin-right:0}
-.muted {color:#9babc0;font-size:13px;line-height:1.6}
+.muted {color:#9babc0;font-size:13px;line-height:1.6}div[data-testid="stCaptionContainer"]{color:#9babc0;line-height:1.5}div[data-testid="stCaptionContainer"] p{margin:.25rem 0}
 .line {font-size:32px;font-weight:750;color:#f5f8fc;margin-top:8px}
 .badge {display:inline-flex;align-items:center;width:max-content;color:#e8c78a;background:#2b2f3d;border:1px solid #4b5363;border-radius:999px;padding:5px 9px;font-size:12px;font-weight:650;margin-top:8px}
 .chips {display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.chip {display:inline-block;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:700;letter-spacing:.02em}.chip-more {background:#123e39;color:#78e1cf}.chip-less {background:#26375a;color:#a9c7ff}.chip-type {background:#2b2f3d;color:#d8dce5}.chip-risk {background:#4a3020;color:#ffd18a}
