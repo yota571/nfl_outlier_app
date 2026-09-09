@@ -94,7 +94,7 @@ def board_records(url):
         conn.execute('CREATE TABLE IF NOT EXISTS nfl_board_outcomes (snapshot_id TEXT PRIMARY KEY REFERENCES nfl_research_snapshots(snapshot_id), actual DOUBLE PRECISION NOT NULL, recorded_at TIMESTAMPTZ NOT NULL)')
         ensure_rls(conn, 'nfl_board_outcomes')
         conn.commit()
-        rows=conn.execute("SELECT s.snapshot_id,s.payload,o.actual FROM nfl_research_snapshots s LEFT JOIN nfl_board_outcomes o USING(snapshot_id) WHERE s.model_version IN ('board-v2','board-v3') ORDER BY s.created_at DESC").fetchall()
+        rows=conn.execute("SELECT s.snapshot_id,s.payload,o.actual FROM nfl_research_snapshots s LEFT JOIN nfl_board_outcomes o USING(snapshot_id) WHERE s.model_version LIKE 'board-v%' ORDER BY s.created_at DESC").fetchall()
     return [dict(**body,snapshot_id=key,actual=actual) for key,body,actual in rows]
 
 
