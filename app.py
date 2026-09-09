@@ -120,15 +120,22 @@ def main():
     st.caption(f"Week {week} / {len(board)} verified props / board checked {pd.Timestamp(fetched).tz_convert(timezone):%H:%M %Z}")
     if nav=='Top opportunities':
         st.subheader('Top opportunities')
-        st.caption('Research candidates ranked by historical distance from the offered line; not validated recommendations.')
+        st.caption('Ranked by historical distance from the offered line, with role stability context. Research only.')
         ranked=[]
         for _,r in board.iterrows():
             games=data['stats'][data['stats'].player_id.eq(r.player_id)] if not data['stats'].empty else pd.DataFrame()
             result=summarize(games,r.market,r.line,n)
             side={'Over':'over','Under':'under'}.get(result['side']) if result else None
-            if result and result['games']>=5 and side in r.sides: ranked.append((abs(result['edge'])/max(float(r.line),1),r,result))
-        for score,r,result in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
-            st.write(f"{r.player} / {LABELS.get(r.market,r.market)} {r.line:g} / {result['side']} / average {result['baseline']:.1f} across {result['games']} games")
+            if not result or result['games']<5 or side not in r.sides: continue
+            risk=[]
+            if not data['snaps'].empty and pd.notna(r.get('pfr_id')):
+                recent=data['snaps'][(data['snaps'].pfr_player_id.eq(r.pfr_id)) & data['snaps'].game_type.eq('REG')].sort_values(['season','week'],ascending=False).head(n)
+                if not recent.empty and recent.offense_pct.mean()<.55: risk.append('low snap share')
+            score=abs(result['edge'])/max(float(r.line),1)
+            ranked.append((score,r,result,risk))
+        for score,r,result,risk in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
+            flags=' / risk: '+', '.join(risk) if risk else ''
+            st.write(f"{r.player} / {LABELS.get(r.market,r.market)} {r.line:g} / {result['side']} / average {result['baseline']:.1f} across {result['games']} games{flags}")
         if not ranked: st.info('No props have enough history and an available historical side.')
         return
     if nav=='Props':
