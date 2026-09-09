@@ -109,7 +109,7 @@ def main():
         upload=st.file_uploader('Optional board JSON',type=['json'])
         if st.button('Refresh sources',use_container_width=True):
             board_source.clear(); foundation.clear(); play_history.clear(); depth_source.clear(); snap_source.clear(); cached_sim.clear()
-    nav=st.radio('Navigate',['Props','Top picks','Player','Research','Results','Health'],horizontal=True,label_visibility='collapsed')
+    nav=st.radio('Navigate',['Props','Top picks','Results','Player','Research','Health'],horizontal=True,label_visibility='collapsed')
     if nav=='Results':
         from workload_ui import render_results
         render_results(database_url())
