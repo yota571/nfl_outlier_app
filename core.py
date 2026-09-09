@@ -125,7 +125,10 @@ def historical_lean(games, market, line, n, sides):
     if result is None:
         return 'NO HISTORY', 'No matched historical sample'
     rate = result['over_rate'] if result['side'] == 'Over' else result['under_rate'] if result['side'] == 'Under' else 0.0
-    detail = f"Average {result['baseline']:.1f} / {result['games']} recorded games / observed side rate {rate:.0%}"
+    games_count=result['games']
+    margin=1.96 * (rate * (1-rate) / max(games_count,1)) ** 0.5
+    low=max(0.0,rate-margin); high=min(1.0,rate+margin)
+    detail = f"Average {result['baseline']:.1f} / {games_count} recorded games / observed side rate {rate:.0%} (approx. 95% range {low:.0%}-{high:.0%})"
     if result['games'] < 5:
         return 'INSUFFICIENT HISTORY', detail
     side = {'Over': 'over', 'Under': 'under'}.get(result['side'])
