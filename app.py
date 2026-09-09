@@ -144,6 +144,9 @@ def main():
             if not data['snaps'].empty and pd.notna(r.get('pfr_id')):
                 recent=data['snaps'][(data['snaps'].pfr_player_id.eq(r.pfr_id)) & data['snaps'].game_type.eq('REG')].sort_values(['season','week'],ascending=False).head(n)
                 if not recent.empty and recent.offense_pct.mean()<.55: risk.append('low snap share')
+            if not data['depth'].empty and pd.notna(r.get('player_id')):
+                depth_rows=data['depth'][data['depth'].gsis_id.eq(r.player_id)]
+                if not depth_rows.empty and pd.to_numeric(depth_rows.pos_rank,errors='coerce').min()>1: risk.append('not first on depth chart')
             score=abs(model_edge) * (0.70 if 'model/history disagreement' in risk else 0.85 if risk else 1.0)
             ranked.append((score,r,result,model,risk,reference))
         for score,r,result,model,risk,reference in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
