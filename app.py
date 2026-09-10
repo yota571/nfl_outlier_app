@@ -32,6 +32,19 @@ button {min-height:44px;border-radius:10px!important;touch-action:manipulation;l
 [data-testid="stRadio"] {position:fixed;bottom:0;left:0;right:0;max-width:820px;margin:auto;z-index:999;contain:paint;border:1px solid #26364b;box-shadow:0 -8px 24px rgba(0,0,0,.28);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding-bottom:max(8px,env(safe-area-inset-bottom))}
 [data-testid="stRadio"] label p {font-size:13px;line-height:1.2;margin:0} [data-testid="stRadio"] label:has(input:checked) p{color:#77dac6;font-weight:700} [data-testid="stRadio"] label:has(input:checked){background:#17263a;border:1px solid #2f6f70;box-shadow:0 0 0 2px rgba(119,218,198,.12);border-radius:9px}
 @media(prefers-contrast:more){.card,[data-testid="stExpander"],[data-testid="stRadio"]{border-color:#6f849d!important}.muted,div[data-testid="stCaptionContainer"]{color:#b8c7d8!important}}\n@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition-duration:.01ms!important;animation-duration:.01ms!important;scroll-behavior:auto!important}}\n@media(max-width:380px){.line{font-size:28px}.player{font-size:19px}.prop-summary{gap:8px}.prop-summary strong{font-size:22px}[data-testid="stRadio"] label p{font-size:11px}}\n@media(max-width:640px){[data-testid="stAlert"]{padding:.8rem 1rem}.card{box-shadow:0 4px 12px rgba(0,0,0,.12)}.prop-row{margin-top:12px;padding-top:12px}.block-container{padding:1rem .8rem calc(6.5rem + env(safe-area-inset-bottom))} [data-testid="stTextInput"] input,[data-testid="stSelectbox"]>div,[data-testid="stNumberInput"] input{min-height:46px;font-size:16px} h1{font-size:1.65rem!important;margin-bottom:.25rem}.player{font-size:20px}.card{padding:15px;border-radius:16px}.muted{font-size:12px;line-height:1.45}.line{font-size:30px}.prop-summary strong{font-size:24px}[data-testid="stRadio"] div[role="radiogroup"]{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px}[data-testid="stRadio"] label{justify-content:center;min-height:38px;padding:3px 1px;white-space:nowrap;touch-action:manipulation;user-select:none;transition:background .15s ease,border-color .15s ease}[data-testid="stRadio"]{left:.5rem;right:.5rem;width:auto;border-radius:14px 14px 0 0}.stApp{overflow-x:hidden}}
+
+.compact-pick.card{padding:12px 14px;margin:6px 0;border-radius:14px;contain-intrinsic-size:180px}
+.compact-pick .player{font-size:18px;gap:9px;margin:0}
+.compact-pick .player img{width:40px!important;height:40px!important;object-fit:contain;flex-shrink:0}
+.compact-pick .player .muted{font-size:12px;font-weight:400;line-height:1.4;margin-top:2px}
+.pick-market{display:flex;align-items:center;flex-wrap:wrap;gap:7px;margin-top:7px;font-size:14px}
+.pick-market strong{font-size:24px;line-height:1.15}
+.compact-pick .chips{margin:5px 0;gap:4px}
+.compact-pick .chip{padding:3px 7px}
+.pick-details{margin-top:4px}
+.pick-details summary{cursor:pointer;color:#77dac6;font-size:13px;min-height:28px;display:list-item;padding:4px 0}
+.pick-details summary:focus-visible{outline:2px solid #77dac6;outline-offset:2px}
+.compact-pick .muted{line-height:1.4}
 </style>''',unsafe_allow_html=True)
 LABELS={'targets':'Receiving targets','pass_yds':'Passing yards','rush_yds':'Rushing yards','rec_yds':'Receiving yards','receptions':'Receptions','rush_att':'Rush attempts','pass_td':'Passing touchdowns','rush_rec_yds':'Rush + receiving yards','pass_rush_yds':'Pass + rushing yards'}
 def database_url():
@@ -238,7 +251,7 @@ def main():
             side_class='chip-more' if side_chip.startswith('MORE') else 'chip-less'
             risk_html=''.join(f'<span class="chip chip-risk">{esc(flag)}</span>' for flag in risk[:2])
             photo_url=str(r.get('headshot_url') or '')
-            st.markdown(f'''<div class="card"><div class="eyebrow">{esc(r.position)} / {esc(r.odds_type)}</div><div class="player">{photo_markup(r.player, photo_url)}{esc(r.player)}</div><div class="muted">{esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div><div class="line">{r.line:g} <span style="font-size:15px;font-weight:400">{esc(LABELS.get(r.market,r.market))}</span></div><div class="chips"><span class="chip {side_class}">{side_chip}</span><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="badge">{tier}</div><div class="muted">Projection {reference:.1f} / {source}{probability_text} / {result['games']} history games{snap_text}</div><div class="muted">Not a validated recommendation</div></div>''',unsafe_allow_html=True)
+            st.markdown(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} history games / Uncalibrated</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
         return
     if nav=='Props':
