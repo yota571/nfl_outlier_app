@@ -175,8 +175,10 @@ def main():
         st.caption('Ranked with tested workload forecasts when available, historical baselines otherwise. Probabilities remain uncalibrated.')
         st.caption('Context limits: injuries, weather, live routes and game-script changes are not modeled.')
         game_labels=board.apply(lambda r: f"{r.team} vs {r.opponent} / {pd.Timestamp(r.game_time).strftime('%a %b %d, %I:%M %p')}",axis=1)
-        game_filter=st.selectbox('Choose game / kickoff',['All games']+sorted(game_labels.dropna().unique()),key='top_picks_game',help='Limit Top picks to one matchup and kickoff.')
-        if game_filter!='All games': board=board[game_labels.eq(game_filter)].copy()
+        game_options=['All games']+sorted(game_labels.dropna().unique())
+        if st.session_state.get('top_picks_game_filter') not in game_options: st.session_state['top_picks_game_filter']='All games'
+        game_filter=st.selectbox('Choose game / kickoff',game_options,key='top_picks_game_filter',help='Limit Top picks to one matchup and kickoff.')
+        if game_filter!='All games': board=board.loc[game_labels.eq(game_filter)].copy().reset_index(drop=True)
         pick_mode=st.selectbox('Show', ['Qualified research candidates','Full research watchlist'], index=0)
         st.caption('Qualified view requires at least 8 history games, a 5% projection edge, and 55% side support. These remain uncalibrated research signals.')
         from workload_ui import assets
