@@ -95,6 +95,7 @@ def verified_players(board,rosters,raw_by_id):
 def main():
     st.markdown('<div class="eyebrow">NFL / WEEKLY RESEARCH</div>',unsafe_allow_html=True)
     st.title('NFL Prop Intelligence')
+    st.caption('Version: Kickoff filter 2')
     st.caption('Verified matchups. Real opportunity data. Evidence before confidence.')
     if st.button('Refresh board',use_container_width=True,type='primary'):
         board_source.clear(); foundation.clear(); play_history.clear(); depth_source.clear(); snap_source.clear(); cached_sim.clear()
