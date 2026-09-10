@@ -193,7 +193,7 @@ def main():
         st.subheader('Top picks')
         st.caption('Ranked with tested workload forecasts when available, historical baselines otherwise. Probabilities remain uncalibrated.')
         st.caption('Context limits: injuries, weather, live routes and game-script changes are not modeled.')
-        game_labels=board.apply(lambda r: f"{r.team} vs {r.opponent} / {pd.Timestamp(r.game_time).strftime('%a %b %d, %I:%M %p')}",axis=1)
+        game_labels=board.apply(lambda r: f"{r.team} vs {r.opponent} / {pd.Timestamp(r.game_time).tz_convert(timezone).strftime('%a %b %d, %I:%M %p %Z')}",axis=1)
         game_options=['All games']+sorted(game_labels.dropna().unique())
         if st.session_state.get('top_picks_game_filter') not in game_options: st.session_state['top_picks_game_filter']='All games'
         # Keep the saved choice separate from the widget, which Streamlit
@@ -257,7 +257,7 @@ def main():
             side_class='chip-more' if side_chip.startswith('MORE') else 'chip-less'
             risk_html=''.join(f'<span class="chip chip-risk">{esc(flag)}</span>' for flag in risk[:2])
             photo_url=str(r.get('headshot_url') or '')
-            pick_cards.append(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} history games / Uncalibrated</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''')
+            pick_cards.append(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} history games / Uncalibrated</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''')
         if pick_cards:
             st.markdown('<div class="pick-grid">'+''.join(pick_cards)+'</div>',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
@@ -275,7 +275,7 @@ def main():
             position=st.selectbox('Position',['All']+sorted(board.position.dropna().unique()))
             market=st.selectbox('Market',['All']+sorted(board.market.unique()),format_func=lambda m:LABELS.get(m,m))
             line_type=st.selectbox('Line type',['Standard','All','Demon','Goblin'])
-            game_labels=board.apply(lambda r: f"{r.team} vs {r.opponent} / {pd.Timestamp(r.game_time).strftime('%a %b %d, %I:%M %p')}",axis=1)
+            game_labels=board.apply(lambda r: f"{r.team} vs {r.opponent} / {pd.Timestamp(r.game_time).tz_convert(timezone).strftime('%a %b %d, %I:%M %p %Z')}",axis=1)
             game_filter=st.selectbox('Game / kickoff',['All games']+sorted(game_labels.dropna().unique()))
         view=board.copy()
         view['_game_label']=game_labels
@@ -337,7 +337,7 @@ def main():
                     lean,lean_detail='History not loaded','Use Load analysis for historical comparisons.'
                 side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Availability unknown'
                 rows.append(f'<div class="prop-row"><div class="prop-summary"><span>{esc(LABELS.get(r.market,r.market))}</span><strong>{r.line:g}</strong></div><div class="chips"><span class="chip chip-type">{esc(side_text)}</span><span class="chip chip-type">{esc(r.odds_type)}</span></div><div class="badge">{esc(lean)}</div><details class="prop-details"><summary>View analysis</summary><div class="muted">{esc(lean_detail)}<br>Historical comparison / not a validated prediction. Confirm availability in PrizePicks.</div></details></div>')
-            st.markdown(f'''<div class="card player-group"><div class="eyebrow">{esc(first.position)} / {esc(first.team)}</div><div class="player pick-title">{photo_markup(first.player,photo_url)}{esc(first.player)}</div><div class="muted">{esc(first.team)} {'vs' if first.home_away=='Home' else '@'} {esc(first.opponent)} / {first.game_time.tz_convert(timezone):%a %b %d, %I:%M %p} / roster: {esc(first.get('roster_status') or 'unknown')}</div><div class='muted'>Role context: {esc(context_text)}</div>{''.join(rows)}</div>''',unsafe_allow_html=True)
+            st.markdown(f'''<div class="card player-group"><div class="eyebrow">{esc(first.position)} / {esc(first.team)}</div><div class="player pick-title">{photo_markup(first.player,photo_url)}{esc(first.player)}</div><div class="muted">{esc(first.team)} {'vs' if first.home_away=='Home' else '@'} {esc(first.opponent)} / {first.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z} / roster: {esc(first.get('roster_status') or 'unknown')}</div><div class='muted'>Role context: {esc(context_text)}</div>{''.join(rows)}</div>''',unsafe_allow_html=True)
         st.caption(f'{len(groups)} player matchups / {len(view)} matching lines. Each player stays together; evidence sorting ranks groups by their strongest historical prop.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
         st.download_button('Export verified board',export.to_csv(index=False),'verified_nfl_board.csv','text/csv',use_container_width=True)
