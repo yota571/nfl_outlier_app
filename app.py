@@ -45,6 +45,11 @@ button {min-height:44px;border-radius:10px!important;touch-action:manipulation;l
 .pick-details summary{cursor:pointer;color:#77dac6;font-size:13px;min-height:28px;display:list-item;padding:4px 0}
 .pick-details summary:focus-visible{outline:2px solid #77dac6;outline-offset:2px}
 .compact-pick .muted{line-height:1.4}
+
+.pick-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;align-items:start}
+.pick-grid .compact-pick.card{margin:0;min-width:0}
+.pick-grid .player>div{min-width:0;overflow-wrap:anywhere}
+@media(max-width:600px){.pick-grid{grid-template-columns:minmax(0,1fr);gap:8px}}
 </style>''',unsafe_allow_html=True)
 LABELS={'targets':'Receiving targets','pass_yds':'Passing yards','rush_yds':'Rushing yards','rec_yds':'Receiving yards','receptions':'Receptions','rush_att':'Rush attempts','pass_td':'Passing touchdowns','rush_rec_yds':'Rush + receiving yards','pass_rush_yds':'Pass + rushing yards'}
 def database_url():
@@ -237,6 +242,7 @@ def main():
                 if not depth_rows.empty and pd.to_numeric(depth_rows.pos_rank,errors='coerce').min()>1: risk.append('not first on depth chart')
             score=abs(model_edge) * (0.70 if 'model/history disagreement' in risk else 0.85 if risk else 1.0)
             ranked.append((score,r,result,model,risk,reference))
+        pick_cards=[]
         for score,r,result,model,risk,reference in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
             label='MORE / OVER' if (('Over' if (model and reference>r.line) else result['side'])=='Over') else 'LESS / UNDER'
             source='workload model' if model else 'historical baseline'
@@ -251,7 +257,9 @@ def main():
             side_class='chip-more' if side_chip.startswith('MORE') else 'chip-less'
             risk_html=''.join(f'<span class="chip chip-risk">{esc(flag)}</span>' for flag in risk[:2])
             photo_url=str(r.get('headshot_url') or '')
-            st.markdown(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} history games / Uncalibrated</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''',unsafe_allow_html=True)
+            pick_cards.append(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} history games / Uncalibrated</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''')
+        if pick_cards:
+            st.markdown('<div class="pick-grid">'+''.join(pick_cards)+'</div>',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
         return
     if nav=='Props':
