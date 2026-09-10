@@ -24,7 +24,7 @@ jobs:
           import pandas as pd
           import sources, core, verification
           board=pd.DataFrame([
-              dict(player='Test Player',team='NE',opponent='SEA',market=m,line=v,game_time=pd.Timestamp('2026-09-20T20:00:00Z'),odds_type='standard',projection_id=str(i),game_id='test-game',home_away='Home')
+              dict(player='Test Player',team='NE',opponent='SEA',market=m,line=v,game_time=pd.Timestamp('2026-09-11T00:35:00Z'),odds_type='standard',projection_id=str(i),game_id='test-game',home_away='Home')
               for i,(m,v) in enumerate([('rec_yds',63.5),('targets',8.0)])
           ])
           sources.board_source=lambda: ([], '2026-09-09T20:00:00Z')
@@ -38,6 +38,8 @@ jobs:
           assert not at.exception, at.exception
           cards=[m.value for m in at.markdown if 'player-group' in m.value and '<div class="card' in m.value]
           assert len(cards)==1, cards
+          assert 'Thu Sep 10, 07:35 PM CDT' in cards[0], cards[0]
+          assert 'Thu Sep 10, 07:35 PM CDT' in next(s for s in at.selectbox if s.label=='Game / kickoff').options[1]
           assert cards[0].count('Test Player')==1
           assert 'Receiving yards' in cards[0] and 'Receiving targets' in cards[0]
           assert 'History not loaded' in cards[0] and 'NO HISTORY' not in cards[0]
@@ -52,6 +54,9 @@ jobs:
           assert not at.exception, at.exception
           kickoff=next(s for s in at.selectbox if s.label=='Choose game / kickoff')
           chosen=kickoff.options[1]
+          assert 'Thu Sep 10, 07:35 PM CDT' in chosen, chosen
+          props_game=next(s for s in at.selectbox if s.label=='Choose game / kickoff')
+          assert props_game.options[1]==chosen
           kickoff.select(chosen).run()
           assert not at.exception, at.exception
           assert next(s for s in at.selectbox if s.label=='Choose game / kickoff').value==chosen
