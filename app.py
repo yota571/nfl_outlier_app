@@ -243,11 +243,15 @@ def main():
             position=st.selectbox('Position',['All']+sorted(board.position.dropna().unique()))
             market=st.selectbox('Market',['All']+sorted(board.market.unique()),format_func=lambda m:LABELS.get(m,m))
             line_type=st.selectbox('Line type',['Standard','All','Demon','Goblin'])
+            game_labels=board.apply(lambda r: f\"{r.team} vs {r.opponent} / {pd.Timestamp(r.game_time).strftime('%a %b %d, %I:%M %p')}\",axis=1)
+            game_filter=st.selectbox('Game / kickoff',['All games']+sorted(game_labels.dropna().unique()))
         view=board.copy()
+        view['_game_label']=game_labels
         if search: view=view[view.player.str.contains(search,case=False,regex=False)]
         if position!='All': view=view[view.position.eq(position)]
         if market!='All': view=view[view.market.eq(market)]
         if line_type!='All': view=view[view.odds_type.str.lower().eq(line_type.lower())]
+        if game_filter!='All games': view=view[view['_game_label'].eq(game_filter)]
         real_photos=int(view.get('photo_source',pd.Series(index=view.index)).isin(['nflverse','espn']).sum()) if 'photo_source' in view else 0
         st.caption(f'Player photos: {real_photos}/{len(view)} provider photos available; fallback avatars fill any missing images.')
         sort_order=st.selectbox('Sort props by',['Best available evidence','Kickoff time'],index=0)
