@@ -47,4 +47,20 @@ jobs:
           assert at.session_state['board_history'] is True
           assert any('NO HISTORY' in m.value for m in at.markdown)
           print('Grouped props, complete-player pagination, and history toggle passed')
+
+          next(r for r in at.radio if r.label=='Navigate').set_value('Top picks').run()
+          assert not at.exception, at.exception
+          kickoff=next(s for s in at.selectbox if s.label=='Choose game / kickoff')
+          chosen=kickoff.options[1]
+          kickoff.select(chosen).run()
+          assert not at.exception, at.exception
+          assert next(s for s in at.selectbox if s.label=='Choose game / kickoff').value==chosen
+          at.run()
+          assert not at.exception, at.exception
+          assert next(s for s in at.selectbox if s.label=='Choose game / kickoff').value==chosen
+          next(r for r in at.radio if r.label=='Navigate').set_value('Props').run()
+          next(r for r in at.radio if r.label=='Navigate').set_value('Top picks').run()
+          assert not at.exception, at.exception
+          assert next(s for s in at.selectbox if s.label=='Choose game / kickoff').value==chosen, 'Kickoff selection lost after navigation'
+          print('Top picks selection, rerun, and navigation passed')
           PY
