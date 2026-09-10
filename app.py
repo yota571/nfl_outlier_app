@@ -243,7 +243,7 @@ def main():
             position=st.selectbox('Position',['All']+sorted(board.position.dropna().unique()))
             market=st.selectbox('Market',['All']+sorted(board.market.unique()),format_func=lambda m:LABELS.get(m,m))
             line_type=st.selectbox('Line type',['Standard','All','Demon','Goblin'])
-            game_labels=board.apply(lambda r: f\"{r.team} vs {r.opponent} / {pd.Timestamp(r.game_time).strftime('%a %b %d, %I:%M %p')}\",axis=1)
+            game_labels=board.apply(lambda r: f"{r.team} vs {r.opponent} / {pd.Timestamp(r.game_time).strftime('%a %b %d, %I:%M %p')}",axis=1)
             game_filter=st.selectbox('Game / kickoff',['All games']+sorted(game_labels.dropna().unique()))
         view=board.copy()
         view['_game_label']=game_labels
