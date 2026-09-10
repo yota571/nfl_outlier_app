@@ -63,4 +63,14 @@ jobs:
           assert not at.exception, at.exception
           assert next(s for s in at.selectbox if s.label=='Choose game / kickoff').value==chosen, 'Kickoff selection lost after navigation'
           print('Top picks selection, rerun, and navigation passed')
+
+          compact_fixture=textwrap.dedent(fixture)+"\ncore.summarize=lambda *a,**k: dict(side='Over', games=18, baseline=90.0, side_hit_rate=0.8)\n"
+          compact=AppTest.from_string(compact_fixture+'\n'+Path('app.py').read_text()).run()
+          next(r for r in compact.radio if r.label=='Navigate').set_value('Top picks').run()
+          assert not compact.exception, compact.exception
+          cards=[m.value for m in compact.markdown if 'class="card compact-pick"' in m.value]
+          assert cards, 'No compact Top picks rendered'
+          assert all('<summary>Details</summary>' in card and '<details class="pick-details">' in card for card in cards)
+          assert all('Test Player' in card and 'Projection' in card and 'Uncalibrated' in card and 'MORE / OVER' in card for card in cards)
+          print('Compact Top picks retain player, direction, projection, and expandable evidence')
           PY
