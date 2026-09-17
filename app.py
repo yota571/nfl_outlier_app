@@ -270,6 +270,8 @@ def main():
                 st.caption('Cached sportsbook consensus from the configured free SportsGameOdds feed. Confirm the live PrizePicks line before using it.')
                 st.dataframe(market_df,use_container_width=True,hide_index=True)
                 st.download_button('Export market comparison',market_df.to_csv(index=False),'nfl_market_comparison.csv','text/csv',use_container_width=True,key='market_comparison_download')
+        else:
+            st.caption('Market comparison is unavailable for this selection. The free feed is connected, but no sportsbook player lines matched this game yet.')
         qualified_learning={k:v for k,v in learned.items() if v.get('qualified')}
         if qualified_learning:
             st.caption('Settled outcome learning is blended into ranking for: '+', '.join(f'{k} ({v["samples"]} settled)' for k,v in sorted(qualified_learning.items())))
