@@ -119,6 +119,33 @@ def settle_board(url,stats,schedule,now=None):
     return saved
 
 
+
+def learning_profile(url, min_samples=20):
+    """Summarize settled board outcomes for conservative future ranking updates."""
+    rows=board_records(url)
+    by_market={}
+    for row in rows:
+        actual=row.get('actual')
+        line=row.get('line')
+        market=str(row.get('market') or '')
+        if actual is None or line is None or not market:
+            continue
+        try:
+            actual=float(actual); line=float(line)
+        except (TypeError,ValueError):
+            continue
+        item=by_market.setdefault(market, {'samples':0,'over':0,'under':0,'push':0})
+        item['samples']+=1
+        if actual>line: item['over']+=1
+        elif actual<line: item['under']+=1
+        else: item['push']+=1
+    for item in by_market.values():
+        n=max(item['samples'],1)
+        item['over_rate']=item['over']/n
+        item['under_rate']=item['under']/n
+        item['qualified']=item['samples']>=min_samples
+    return by_market
+
 def ensure_rls(conn, table):
     """Avoid requesting ACCESS EXCLUSIVE on every read/write once RLS is enabled."""
     from psycopg import sql
