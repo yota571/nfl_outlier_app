@@ -236,7 +236,13 @@ def main():
         stats_by_player={pid:grp for pid,grp in data['stats'].groupby('player_id')} if not data['stats'].empty else {}
         for _,r in board.iterrows():
             games=stats_by_player.get(r.player_id,pd.DataFrame())
-            result=summarize(games,r.market,r.line,n)
+            opponent_games=games
+            opponent_col=next((col for col in ('opponent_team','defteam','opponent') if col in games.columns),None)
+            if opponent_col and not games.empty:
+                matching=games[games[opponent_col].astype(str).str.upper().eq(str(r.opponent).upper())]
+                if len(matching)>=3: opponent_games=matching
+            history_scope='same-opponent' if len(opponent_games)<len(games) else 'all opponents'
+            result=summarize(opponent_games,r.market,r.line,n)
             side={'Over':'over','Under':'under'}.get(result['side']) if result else None
             if not result or result['games']<5 or side not in r.sides: continue
             model=None
@@ -288,7 +294,7 @@ def main():
             side_class='chip-more' if side_chip.startswith('MORE') else 'chip-less'
             risk_html=''.join(f'<span class="chip chip-risk">{esc(flag)}</span>' for flag in risk[:2])
             photo_url=str(r.get('headshot_url') or '')
-            pick_cards.append(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} history games / Uncalibrated</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''')
+            pick_cards.append(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} {history_scope} games / Uncalibrated</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''')
         if pick_cards:
             st.markdown('<div class="pick-grid">'+''.join(pick_cards)+'</div>',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
