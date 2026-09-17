@@ -38,6 +38,25 @@ def board_source():
     return rows,stamp()
 
 @st.cache_data(ttl=86400,max_entries=1,show_spinner=False)
+@st.cache_data(ttl=900, max_entries=2, show_spinner=False)
+def sportsbook_context():
+    """Optional SportsGameOdds context; requires SPORTSGAMEODDS_API_KEY in secrets."""
+    try:
+        key=st.secrets.get('SPORTSGAMEODDS_API_KEY')
+    except Exception:
+        key=None
+    if not key:
+        return [], dict(source='SportsGameOdds',status='Not configured',checked_at=stamp(),rows=0,error='Add SPORTSGAMEODDS_API_KEY to Streamlit Secrets to enable cached sportsbook context.')
+    try:
+        response=requests.get('https://api.sportsgameodds.com/v2/events',params={'leagueID':'NFL','oddsAvailable':'true','apiKey':key},timeout=(10,25))
+        response.raise_for_status()
+        payload=response.json()
+        rows=payload.get('data',payload if isinstance(payload,list) else [])
+        return rows if isinstance(rows,list) else [], dict(source='SportsGameOdds',status='Available',checked_at=stamp(),rows=len(rows),error=None)
+    except Exception as exc:
+        return [], dict(source='SportsGameOdds',status='Unavailable',checked_at=stamp(),rows=0,error=f'{type(exc).__name__}: {exc}')
+
+
 def players_source():
     return result('nflverse players',lambda:frame(nfl.load_players()))
 
