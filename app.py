@@ -263,6 +263,13 @@ def main():
         model_table,_=assets()
         learned=settled_learning(database_url())
         market_lines=market_context(board, sportsbook_events)
+        if market_lines:
+            market_rows=[dict(player=player,market=market,consensus=q.get('consensus'),books=q.get('books'),best_line=q.get('best'),worst_line=q.get('worst')) for (player,market),q in market_lines.items()]
+            market_df=pd.DataFrame(market_rows).sort_values(['player','market'])
+            with st.expander('Free market comparison',expanded=False):
+                st.caption('Cached sportsbook consensus from the configured free SportsGameOdds feed. Confirm the live PrizePicks line before using it.')
+                st.dataframe(market_df,use_container_width=True,hide_index=True)
+                st.download_button('Export market comparison',market_df.to_csv(index=False),'nfl_market_comparison.csv','text/csv',use_container_width=True,key='market_comparison_download')
         qualified_learning={k:v for k,v in learned.items() if v.get('qualified')}
         if qualified_learning:
             st.caption('Settled outcome learning is blended into ranking for: '+', '.join(f'{k} ({v["samples"]} settled)' for k,v in sorted(qualified_learning.items())))
