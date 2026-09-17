@@ -110,6 +110,16 @@ def verified_players(board,rosters,raw_by_id):
         verified.append(row)
     return pd.DataFrame(verified),issues
 
+@st.cache_data(ttl=300,show_spinner=False)
+def settled_learning(url):
+    if not url:
+        return {}
+    try:
+        from storage import learning_profile
+        return learning_profile(url, min_samples=20)
+    except Exception:
+        return {}
+
 def current_nfl_week(now):
     """Return the regular-season week containing today's date."""
     labor_day=pd.Timestamp(year=now.year,month=9,day=1)
@@ -218,6 +228,10 @@ def main():
         st.caption('Qualified view requires at least 8 history games, a 5% projection edge, and 55% side support. These remain uncalibrated research signals.')
         from workload_ui import assets
         model_table,_=assets()
+        learned=settled_learning(database_url())
+        qualified_learning={k:v for k,v in learned.items() if v.get('qualified')}
+        if qualified_learning:
+            st.caption('Settled outcome learning is blended into ranking for: '+', '.join(f'{k} ({v["samples"]} settled)' for k,v in sorted(qualified_learning.items())))
         ranked=[]
         stats_by_player={pid:grp for pid,grp in data['stats'].groupby('player_id')} if not data['stats'].empty else {}
         for _,r in board.iterrows():
@@ -235,6 +249,10 @@ def main():
             direction='Over' if model_edge>0 else 'Under' if model_edge<0 else result['side']
             if model and direction.lower() not in r.sides: continue
             side_prob=float(model.get('more' if direction=='Over' else 'less',0.0)) if model else float(result.get('side_hit_rate',0.0))
+            learned_market=qualified_learning.get(str(r.market))
+            if learned_market:
+                observed=float(learned_market['over_rate'] if direction=='Over' else learned_market['under_rate'])
+                side_prob=(0.70*side_prob)+(0.30*observed)
             if pick_mode=='Qualified research candidates' and (result['games']<8 or abs(model_edge)<0.05 or side_prob<0.55): continue
             risk=[]
             snap_share=None
@@ -252,6 +270,8 @@ def main():
                 depth_rows=data['depth'][data['depth'].gsis_id.eq(r.player_id)]
                 if not depth_rows.empty and pd.to_numeric(depth_rows.pos_rank,errors='coerce').min()>1: risk.append('not first on depth chart')
             score=abs(model_edge) * (0.70 if 'model/history disagreement' in risk else 0.85 if risk else 1.0)
+            if learned_market:
+                score *= max(0.60, min(1.15, 0.75 + 0.50*side_prob))
             ranked.append((score,r,result,model,risk,reference))
         pick_cards=[]
         for score,r,result,model,risk,reference in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
