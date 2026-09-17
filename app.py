@@ -424,13 +424,14 @@ def main():
                 from core import market_series
                 chart_options=list(dict.fromkeys(player_props.market.astype(str).tolist()))
                 chart_market=st.selectbox('Graph prop',chart_options,format_func=lambda m:LABELS.get(m,m),key=f'graph_prop_{first.player_id}_{first.game_id}')
-                values=market_series(games.sort_values(['season','week'],ascending=False),chart_market).dropna().head(n)
+                game_log=games.sort_values(['season','week'],ascending=False).head(n).reset_index(drop=True)
+                values=market_series(game_log,chart_market).dropna()
                 if not values.empty:
                     values=values.iloc[::-1]
                     chart=pd.DataFrame({'Actual':values.to_numpy()})
                     selected_line=float(player_props[player_props.market.eq(chart_market)].iloc[0].line)
                     chart['Line']=selected_line
-                    chart.index=[f"{int(games.iloc[idx].season)} W{int(games.iloc[idx].week)}" for idx in values.index]
+                    chart.index=[f"{int(game_log.loc[idx,'season'])} W{int(game_log.loc[idx,'week'])}" for idx in values.index]
                     st.caption(f'{LABELS.get(chart_market,chart_market)} / {len(values)} filtered games / line {selected_line:g}')
                     st.bar_chart(chart,height=170,use_container_width=True)
         st.caption(f'{len(groups)} player matchups / {len(view)} matching lines. Each player stays together; evidence sorting ranks groups by their strongest historical prop.')
