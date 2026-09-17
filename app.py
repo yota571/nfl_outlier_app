@@ -111,6 +111,36 @@ def verified_players(board,rosters,raw_by_id):
     return pd.DataFrame(verified),issues
 
 @st.cache_data(ttl=300,show_spinner=False)
+def market_context(board, events):
+    """Match SportsGameOdds consensus/book lines to verified board rows."""
+    market_map={'passing_yards':'pass_yds','rushing_yards':'rush_yds','receiving_yards':'rec_yds','receptions':'receptions','targets':'targets','rushing_attempts':'rush_att','passing_touchdowns':'pass_td'}
+    names={}
+    for event in events or []:
+        for player in event.get('players',[]) or []:
+            pid=player.get('playerID') or player.get('id')
+            name=(player.get('names') or {}).get('display') or player.get('name')
+            if pid and name: names[str(pid)]=str(name)
+    matched={}
+    for event in events or []:
+        for odd in (event.get('odds') or {}).values():
+            if not isinstance(odd,dict): continue
+            market=market_map.get(str(odd.get('statID') or ''))
+            player_id=odd.get('playerID') or odd.get('statEntityID')
+            player=names.get(str(player_id),'')
+            if not market or not player: continue
+            books=odd.get('byBookmaker') or {}
+            lines=[]
+            for book,value in books.items():
+                if isinstance(value,dict) and value.get('available') and value.get('overUnder') is not None:
+                    try: lines.append((str(book),float(value['overUnder'])))
+                    except (TypeError,ValueError): pass
+            if not lines: continue
+            consensus=odd.get('fairOverUnder') or odd.get('bookOverUnder')
+            try: consensus=float(consensus)
+            except (TypeError,ValueError): consensus=float(np.median([v for _,v in lines]))
+            matched[(normalize_name(player),market)]=dict(consensus=consensus,books=len(lines),best=min(v for _,v in lines),worst=max(v for _,v in lines))
+    return matched
+
 def settled_learning(url):
     if not url:
         return {}
@@ -164,7 +194,7 @@ def main():
             board=pd.DataFrame(); skips={}; fetched=stamp()
             health.append(dict(source='PrizePicks',status='Unavailable',checked_at=fetched,error=str(exc)))
         data,source_health=foundation(int(season),int(week),include_history=load_board_history or nav in ('Top picks','Player','Research'),include_usage=nav in ('Player','Top picks') or (nav=='Props' and load_board_history)); health.extend(source_health)
-        _,sportsbook_health=sportsbook_context(); health.append(sportsbook_health)
+        sportsbook_events,sportsbook_health=sportsbook_context(); health.append(sportsbook_health)
     issues=[]
     if not board.empty:
         board,issues=attach_games(board,data['schedule'],season,week)
@@ -230,6 +260,7 @@ def main():
         from workload_ui import assets
         model_table,_=assets()
         learned=settled_learning(database_url())
+        market_lines=market_context(board, sportsbook_events)
         qualified_learning={k:v for k,v in learned.items() if v.get('qualified')}
         if qualified_learning:
             st.caption('Settled outcome learning is blended into ranking for: '+', '.join(f'{k} ({v["samples"]} settled)' for k,v in sorted(qualified_learning.items())))
@@ -295,7 +326,9 @@ def main():
             side_class='chip-more' if side_chip.startswith('MORE') else 'chip-less'
             risk_html=''.join(f'<span class="chip chip-risk">{esc(flag)}</span>' for flag in risk[:2])
             photo_url=str(r.get('headshot_url') or '')
-            pick_cards.append(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} {history_scope} games / Uncalibrated</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''')
+            market_quote=market_lines.get((normalize_name(str(r.player)),str(r.market)))
+            market_text=(f' / market {market_quote["consensus"]:g} consensus across {market_quote["books"]} books' if market_quote else '')
+            pick_cards.append(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} {history_scope} games / Uncalibrated{market_text}</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''')
         if pick_cards:
             st.markdown('<div class="pick-grid">'+''.join(pick_cards)+'</div>',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
