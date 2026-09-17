@@ -110,6 +110,15 @@ def verified_players(board,rosters,raw_by_id):
         verified.append(row)
     return pd.DataFrame(verified),issues
 
+def current_nfl_week(now):
+    """Return the regular-season week containing today's date."""
+    labor_day=pd.Timestamp(year=now.year,month=9,day=1)
+    labor_day += pd.Timedelta(days=(7-int(labor_day.dayofweek)) % 7)
+    season_opener=labor_day + pd.Timedelta(days=3)
+    if now.date() < season_opener.date():
+        return 1
+    return min(18, max(1, ((now.date()-season_opener.date()).days // 7) + 1))
+
 def main():
     st.markdown('<div class="eyebrow">NFL / WEEKLY RESEARCH</div>',unsafe_allow_html=True)
     st.title('NFL Prop Intelligence')
@@ -121,7 +130,8 @@ def main():
     now=datetime.now(ZoneInfo('America/Chicago'))
     with st.expander('Slate & settings'):
         season=st.number_input('Season',2000,now.year+1,now.year if now.month>=3 else now.year-1)
-        week=st.number_input('Week',1,18,1)
+        week_default=current_nfl_week(now)
+        week=st.number_input('Week',1,18,week_default,help='Defaults to the current NFL regular-season week; change it to review an earlier slate.')
         n=st.slider('Historical games',5,25,10)
         load_board_history=st.checkbox('Load historical context on the Props board (slower)',value=False,key='board_history')
         timezone=st.selectbox('Timezone',['America/Chicago','America/New_York','America/Denver','America/Los_Angeles','UTC'])
@@ -175,7 +185,8 @@ def main():
         st.markdown('[nflverse source and availability](https://nflreadr.nflverse.com/articles/nflverse_data_schedule.html)')
         return
     if board.empty:
-        st.info('No verified props available for this slate. Check Health for source or mapping issues.'); return
+        st.info(f'No verified props available for Week {week}. The live board may be on a different week; change Week in Slate & settings and refresh sources.')
+        return
     if database_url() and not upload:
         # Interactive rendering stays read-only; the background collector writes
         # complete board snapshots without delaying the mobile page.
