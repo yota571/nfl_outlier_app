@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 import streamlit as st
-from core import parse_board, summarize, history, historical_lean
+from core import parse_board, summarize, history, historical_lean, normalize_name
 from verification import attach_games, resolve_player, allowed_sides
 from sources import foundation, board_source, play_history, stamp, depth_source, snap_source, sportsbook_context
 from research import simulate, distribution, VERSION
