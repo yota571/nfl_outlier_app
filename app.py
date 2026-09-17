@@ -10,7 +10,7 @@ import pandas as pd
 import streamlit as st
 from core import parse_board, summarize, history, historical_lean
 from verification import attach_games, resolve_player, allowed_sides
-from sources import foundation, board_source, play_history, stamp, depth_source, snap_source
+from sources import foundation, board_source, play_history, stamp, depth_source, snap_source, sportsbook_context
 from research import simulate, distribution, VERSION
 
 st.set_page_config(page_title='NFL Prop Intelligence',page_icon='🏈',layout='centered')
@@ -164,6 +164,7 @@ def main():
             board=pd.DataFrame(); skips={}; fetched=stamp()
             health.append(dict(source='PrizePicks',status='Unavailable',checked_at=fetched,error=str(exc)))
         data,source_health=foundation(int(season),int(week),include_history=load_board_history or nav in ('Top picks','Player','Research'),include_usage=nav in ('Player','Top picks') or (nav=='Props' and load_board_history)); health.extend(source_health)
+        _,sportsbook_health=sportsbook_context(); health.append(sportsbook_health)
     issues=[]
     if not board.empty:
         board,issues=attach_games(board,data['schedule'],season,week)
