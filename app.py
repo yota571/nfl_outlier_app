@@ -117,6 +117,8 @@ def market_context(board, events):
     names={}
     for event in events or []:
         for player in event.get('players',[]) or []:
+            if not isinstance(player,dict):
+                continue
             pid=player.get('playerID') or player.get('id')
             name=(player.get('names') or {}).get('display') or player.get('name')
             if pid and name: names[str(pid)]=str(name)
