@@ -420,6 +420,19 @@ def main():
                 side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Availability unknown'
                 rows.append(f'<div class="prop-row"><div class="prop-summary"><span>{esc(LABELS.get(r.market,r.market))}</span><strong>{r.line:g}</strong></div><div class="chips"><span class="chip chip-type">{esc(side_text)}</span><span class="chip chip-type">{esc(r.odds_type)}</span></div><div class="badge">{esc(lean)}</div><details class="prop-details"><summary>View analysis</summary><div class="muted">{esc(lean_detail)}<br>Historical comparison / not a validated prediction. Confirm availability in PrizePicks.</div></details></div>')
             st.markdown(f'''<div class="card player-group"><div class="eyebrow">{esc(first.position)} / {esc(first.team)}</div><div class="player pick-title">{photo_markup(first.player,photo_url)}{esc(first.player)}</div><div class="muted">{esc(first.team)} {'vs' if first.home_away=='Home' else '@'} {esc(first.opponent)} / {first.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z} / roster: {esc(first.get('roster_status') or 'unknown')}</div><div class='muted'>Role context: {esc(context_text)}</div>{''.join(rows)}</div>''',unsafe_allow_html=True)
+            if load_board_history and not games.empty:
+                from core import market_series
+                chart_options=list(dict.fromkeys(player_props.market.astype(str).tolist()))
+                chart_market=st.selectbox('Graph prop',chart_options,format_func=lambda m:LABELS.get(m,m),key=f'graph_prop_{first.player_id}_{first.game_id}')
+                values=market_series(games.sort_values(['season','week'],ascending=False),chart_market).dropna().head(n)
+                if not values.empty:
+                    values=values.iloc[::-1]
+                    chart=pd.DataFrame({'Actual':values.to_numpy()})
+                    selected_line=float(player_props[player_props.market.eq(chart_market)].iloc[0].line)
+                    chart['Line']=selected_line
+                    chart.index=[f"{int(games.iloc[idx].season)} W{int(games.iloc[idx].week)}" for idx in values.index]
+                    st.caption(f'{LABELS.get(chart_market,chart_market)} / {len(values)} filtered games / line {selected_line:g}')
+                    st.bar_chart(chart,height=170,use_container_width=True)
         st.caption(f'{len(groups)} player matchups / {len(view)} matching lines. Each player stays together; evidence sorting ranks groups by their strongest historical prop.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
         st.download_button('Export verified board',export.to_csv(index=False),'verified_nfl_board.csv','text/csv',use_container_width=True)
