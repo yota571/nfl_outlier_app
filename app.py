@@ -434,6 +434,20 @@ def main():
                     chart.index=[f"{int(game_log.loc[idx,'season'])} W{int(game_log.loc[idx,'week'])}" for idx in values.index]
                     st.caption(f'{LABELS.get(chart_market,chart_market)} / {len(values)} filtered games / line {selected_line:g}')
                     st.bar_chart(chart,height=170,use_container_width=True)
+                if load_board_history and not games.empty:
+                    with st.expander('Supporting stats',expanded=False):
+                        recent_games=games.sort_values(['season','week'],ascending=False).head(n)
+                        metric_map={'Targets':'targets','Carries':'carries','Receiving yards':'receiving_yards','Rushing yards':'rushing_yards','Receptions':'receptions'}
+                        metric_values=[]
+                        for label,col in metric_map.items():
+                            if col in recent_games.columns:
+                                vals=pd.to_numeric(recent_games[col],errors='coerce').dropna()
+                                if not vals.empty: metric_values.append((label,vals))
+                        if metric_values:
+                            cols=st.columns(min(3,len(metric_values)))
+                            for idx,(label,vals) in enumerate(metric_values):
+                                cols[idx % len(cols)].metric(label,f'{float(vals.mean()):.1f}',f'{len(vals)} games')
+                        st.caption('Recent usage averages from the selected history window. These describe workload and outcomes; they are not forecasts.')
         st.caption(f'{len(groups)} player matchups / {len(view)} matching lines. Each player stays together; evidence sorting ranks groups by their strongest historical prop.')
         export=board.drop(columns=['sides']).copy(); export['availability']='Mobile unverified'; export['recommendation']='PASS - validation incomplete'
         st.download_button('Export verified board',export.to_csv(index=False),'verified_nfl_board.csv','text/csv',use_container_width=True)
