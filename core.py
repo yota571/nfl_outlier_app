@@ -112,6 +112,56 @@ def summarize(games, market, line, n, odds_type="standard"):
     under = float((recent < line).mean())
     return dict(side_policy='More only' if more_only else 'Standard', baseline=float(recent.mean()), edge=delta, side=side, games=len(recent), over_rate=over, under_rate=under, push_rate=float((recent == line).mean()), side_hit_rate=over if side == 'Over' else under if side == 'Under' else 0., history_seasons=', '.join(str(int(x)) for x in games.loc[recent.index, 'season'].unique()))
 
+
+def predictive_summary(games, market, line, n, opponent_games=None):
+    """Recency-weighted research projection with conservative probability smoothing."""
+    values = market_series(games, market).dropna().head(n)
+    if len(values) < 5:
+        return None
+    # Half-life of four games: recent usage changes matter without discarding history.
+    weights = pd.Series([0.5 ** (i / 4.0) for i in range(len(values))], index=values.index)
+    weights = weights / weights.sum()
+    mean = float((values * weights).sum())
+    variance = float((((values - mean) ** 2) * weights).sum())
+    sd = max(variance ** 0.5, 0.25)
+    over_weight = float(weights[values > line].sum())
+    under_weight = float(weights[values < line].sum())
+    push_weight = float(weights[values == line].sum())
+    # Beta(2,2) prior prevents small samples and streaks from producing extreme confidence.
+    effective_n = float(min(len(values), 10))
+    empirical_over = (over_weight * effective_n + 2.0) / (effective_n + 4.0)
+    opponent_used = 0
+    if opponent_games is not None and not opponent_games.empty:
+        opponent_values = market_series(opponent_games, market).dropna().head(5)
+        if len(opponent_values) >= 3:
+            opponent_used = len(opponent_values)
+            opponent_mean = float(opponent_values.mean())
+            mean = 0.80 * mean + 0.20 * opponent_mean
+            opponent_over = (float((opponent_values > line).sum()) + 1.0) / (len(opponent_values) + 2.0)
+            empirical_over = 0.80 * empirical_over + 0.20 * opponent_over
+    # A distribution estimate adds margin information; blend it with actual hit frequency.
+    normal_over = 0.5 * (1.0 + math.erf((mean - float(line)) / (sd * math.sqrt(2.0))))
+    over = max(0.05, min(0.95, 0.65 * empirical_over + 0.35 * normal_over))
+    under = max(0.05, min(0.95, 1.0 - over - push_weight * 0.25))
+    total = over + under
+    over, under = over / total, under / total
+    side = 'Over' if over > under else 'Under' if under > over else 'No clear edge'
+    probability = max(over, under)
+    return dict(
+        side=side,
+        baseline=mean,
+        edge=mean - float(line),
+        games=len(values),
+        over_rate=over,
+        under_rate=under,
+        push_rate=push_weight,
+        side_hit_rate=probability,
+        uncertainty=sd,
+        opponent_games=opponent_used,
+        method='recency-weighted + smoothed' + (' + opponent-adjusted' if opponent_used else ''),
+    )
+
+
 def history(games, market, line, n):
     values = market_series(games, market).dropna().head(n)
     result = games.loc[values.index, ['season', 'week']].copy()
