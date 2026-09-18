@@ -141,10 +141,12 @@ def predictive_summary(games, market, line, n, opponent_games=None):
             empirical_over = 0.80 * empirical_over + 0.20 * opponent_over
     # A distribution estimate adds margin information; blend it with actual hit frequency.
     normal_over = 0.5 * (1.0 + math.erf((mean - float(line)) / (sd * math.sqrt(2.0))))
-    over = max(0.05, min(0.95, 0.65 * empirical_over + 0.35 * normal_over))
-    under = max(0.05, min(0.95, 1.0 - over - push_weight * 0.25))
-    total = over + under
-    over, under = over / total, under / total
+    over_share = max(0.05, min(0.95, 0.65 * empirical_over + 0.35 * normal_over))
+    # Preserve pushes as a real third outcome instead of redistributing them to either side.
+    push = max(0.0, min(0.90, push_weight))
+    decisive_mass = 1.0 - push
+    over = decisive_mass * over_share
+    under = decisive_mass * (1.0 - over_share)
     side = 'Over' if over > under else 'Under' if under > over else 'No clear edge'
     probability = max(over, under)
     return dict(
@@ -154,7 +156,7 @@ def predictive_summary(games, market, line, n, opponent_games=None):
         games=len(values),
         over_rate=over,
         under_rate=under,
-        push_rate=push_weight,
+        push_rate=push,
         side_hit_rate=probability,
         uncertainty=sd,
         opponent_games=opponent_used,
@@ -193,6 +195,10 @@ def historical_lean(games, market, line, n, sides):
     detail = f"Average {result['baseline']:.1f} / {games_count} recorded games / observed side rate {rate:.0%} (approx. 95% range {low:.0%}-{high:.0%})"
     if result['games'] < 5:
         return 'INSUFFICIENT HISTORY', detail
+    if result['push_rate'] >= 0.40:
+        return 'PUSH-HEAVY / NO LEAN', detail
+    if rate < 0.55:
+        return 'WEAK HISTORY / NO LEAN', detail
     side = {'Over': 'over', 'Under': 'under'}.get(side)
     if side is None:
         return 'NO HISTORICAL LEAN', detail
