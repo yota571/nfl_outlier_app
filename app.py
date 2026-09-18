@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pandas as pd
 import streamlit as st
-from core import parse_board, summarize, history, historical_lean, normalize_name
+from core import parse_board, summarize, predictive_summary, history, historical_lean, normalize_name
 from verification import attach_games, resolve_player, allowed_sides
 from sources import foundation, board_source, play_history, stamp, depth_source, snap_source, sportsbook_context
 from research import simulate, distribution, VERSION
@@ -286,7 +286,7 @@ def main():
                 matching=games[games[opponent_col].astype(str).str.upper().eq(str(r.opponent).upper())]
                 if len(matching)>=3: opponent_games=matching
             history_scope='same-opponent' if len(opponent_games)<len(games) else 'all opponents'
-            result=summarize(opponent_games,r.market,r.line,n)
+            result=predictive_summary(games,r.market,r.line,n,opponent_games if history_scope=='same-opponent' else None)
             side={'Over':'over','Under':'under'}.get(result['side']) if result else None
             if not result or result['games']<5 or side not in r.sides: continue
             model=None
@@ -326,7 +326,7 @@ def main():
         pick_cards=[]
         for score,r,result,model,risk,reference in sorted(ranked,key=lambda x:x[0],reverse=True)[:25]:
             label='MORE / OVER' if (('Over' if (model and reference>r.line) else result['side'])=='Over') else 'LESS / UNDER'
-            source='workload model' if model else 'historical baseline'
+            source='workload model' if model else result.get('method','historical projection')
             direction_key='more' if label=='MORE / OVER' else 'less'
             estimated_prob=float(model.get(direction_key, 0.0)) if model else float(result.get('side_hit_rate', 0.0))
             probability_text=f' / estimated {estimated_prob:.0%} {label.split(" /")[0].lower()}' if estimated_prob > 0 else ''
@@ -340,7 +340,8 @@ def main():
             photo_url=str(r.get('headshot_url') or '')
             market_quote=market_lines.get((normalize_name(str(r.player)),str(r.market)))
             market_text=(f' / market {market_quote["consensus"]:g} consensus across {market_quote["books"]} books' if market_quote else '')
-            pick_cards.append(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} {history_scope} games / Uncalibrated{market_text}</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''')
+            uncertainty_text=f' / variability ±{float(result.get("uncertainty",0.0)):.1f}' if result.get('uncertainty') is not None else ''
+            pick_cards.append(f'''<div class="card compact-pick"><div class="pick-heading"><div class="player">{photo_markup(r.player, photo_url)}<div>{esc(r.player)}<div class="muted">{esc(r.position)} / {esc(r.team)} vs {esc(r.opponent)} / {r.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z}</div></div></div></div><div class="pick-market"><strong>{r.line:g}</strong> {esc(LABELS.get(r.market,r.market))}<span class="chip {side_class}">{side_chip}</span></div><div class="chips"><span class="chip chip-type">{esc(r.odds_type)}</span><span class="chip chip-type">{esc(roster)}</span>{risk_html}</div><div class="muted">Projection {reference:.1f} / {result['games']} recent games / {esc(result.get('method','historical projection'))}{uncertainty_text} / Uncalibrated{market_text}</div><details class="pick-details"><summary>Details</summary><div class="badge">{tier}</div><div class="muted">{source}{probability_text}{snap_text}</div><div class="muted">Not a validated recommendation</div></details></div>''')
         if pick_cards:
             st.markdown('<div class="pick-grid">'+''.join(pick_cards)+'</div>',unsafe_allow_html=True)
         if not ranked: st.info('No props have enough history and an available historical side.')
