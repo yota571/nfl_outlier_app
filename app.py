@@ -295,10 +295,12 @@ def main():
                 kind='targets' if r.market=='targets' else 'carries'
                 model=forecast(model_table,r.player_id,r.team,kind,int(season),int(week))
             reference=float(model['mean']) if model else float(result['baseline'])
-            model_edge=(reference-float(r.line))/max(float(r.line),1.0)
-            direction='Over' if model_edge>0 else 'Under' if model_edge<0 else result['side']
-            if model and direction.lower() not in r.sides: continue
+            raw_edge=(reference-float(r.line))/max(float(r.line),1.0)
+            direction=('Over' if raw_edge>0 else 'Under' if raw_edge<0 else result['side']) if model else result['side']
+            if direction not in ('Over','Under'): continue
+            if direction.lower() not in r.sides: continue
             side_prob=float(model.get('more' if direction=='Over' else 'less',0.0)) if model else float(result.get('side_hit_rate',0.0))
+            model_edge=raw_edge if model else max(0.0,(side_prob-0.5)*2.0)
             learned_market=qualified_learning.get(str(r.market))
             if learned_market:
                 observed=float(learned_market['over_rate'] if direction=='Over' else learned_market['under_rate'])
