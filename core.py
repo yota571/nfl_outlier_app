@@ -29,7 +29,7 @@ def normalize_name(value):
     value = re.sub(r'[^a-z0-9 ]', ' ', value)
     return re.sub(r'\s+(jr|sr|ii|iii|iv)$', '', ' '.join(value.split()))
 
-def prepare_stats(df):
+def prepare_stats(df, include_postseason=False):
     df = df.copy()
     for old, new in [('recent_team', 'team'), ('rushing_attempts', 'carries')]:
         if new not in df and old in df:
@@ -41,8 +41,8 @@ def prepare_stats(df):
     for col in ['season', 'week']:
         df[col] = pd.to_numeric(df[col], errors='coerce')
     df = df.dropna(subset=['season', 'week'])
-    df = df[df.season_type.eq('REG')]
-    return df.sort_values(['season', 'week'], ascending=False).drop_duplicates(['player_id', 'merge_name', 'season', 'week']).reset_index(drop=True)
+    df = df[df.season_type.isin(['REG', 'POST'] if include_postseason else ['REG'])]
+    return df.sort_values(['season', 'week'], ascending=False).drop_duplicates(['player_id', 'merge_name', 'season', 'week', 'season_type']).reset_index(drop=True)
 
 def player_games(stats, name):
     # Never substitute a more popular player with the same surname.
@@ -166,7 +166,8 @@ def predictive_summary(games, market, line, n, opponent_games=None):
 
 def history(games, market, line, n):
     values = market_series(games, market).dropna().head(n)
-    result = games.loc[values.index, ['season', 'week']].copy()
+    cols = [c for c in ['season', 'week', 'season_type', 'game_id', 'gameday', 'opponent_team', 'history_source'] if c in games]
+    result = games.loc[values.index, cols].copy()
     result['value'] = values
     result['result'] = values.map(lambda v: 'Over' if v > line else 'Under' if v < line else 'Push')
     return result

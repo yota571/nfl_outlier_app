@@ -165,7 +165,7 @@ def current_nfl_week(now):
 def main():
     st.markdown('<div class="eyebrow">NFL / WEEKLY RESEARCH</div>',unsafe_allow_html=True)
     st.title('NFL Prop Intelligence')
-    st.caption('Version: Kickoff filter 2')
+    st.caption('Version: Complete game history 1')
     st.caption('Verified matchups. Real opportunity data. Evidence before confidence.')
     if st.button('Refresh board',use_container_width=True,type='primary'):
         board_source.clear(); foundation.clear(); play_history.clear(); depth_source.clear(); snap_source.clear(); cached_sim.clear()
@@ -204,6 +204,8 @@ def main():
     raw_by_id={str(x.get('projection_id')):x for x in raw if isinstance(x,dict) and x.get('projection_id')} if not board.empty else {}
     board,identity_issues=verified_players(board,data['rosters'],raw_by_id)
     issues.extend(identity_issues)
+    if not data.get('history_complete', True):
+        st.warning('Some game-history sources are unavailable. History may omit zero-stat appearances; check Health and refresh sources.')
     if nav=='Health':
         st.subheader('System health')
         for status in health:
@@ -424,12 +426,18 @@ def main():
                 side_text=' / '.join('MORE' if s=='over' else 'LESS' for s in r.sides) or 'Availability unknown'
                 chart_html=''
                 if load_board_history and not games.empty:
-                    from core import market_series
-                    plot_values=market_series(games.sort_values(['season','week'],ascending=False).head(n).reset_index(drop=True),r.market).dropna().iloc[::-1]
-                    if not plot_values.empty:
-                        vmax=max(1.0,max(abs(float(v)) for v in plot_values))
-                        bars=''.join(f'<span class="mini-bar" style="height:{max(8,min(100,abs(float(v))/vmax*100)):.0f}%" title="{float(v):g}"><b class="mini-bar-label">{float(v):g}</b></span>' for v in plot_values)
-                        chart_html=f'<div class="mini-chart-wrap"><div class="muted">Last {len(plot_values)} games / current line {float(r.line):g}</div><div class="mini-chart">{bars}</div></div>'
+                    plot = history(games, r.market, r.line, n).iloc[::-1]
+                    if not plot.empty:
+                        vmax=max(1.0,max(abs(float(v)) for v in plot.value))
+                        bars=[]
+                        for _, h in plot.iterrows():
+                            date=pd.to_datetime(h.get('gameday'),errors='coerce')
+                            label=f"{date:%m/%d/%y}" if pd.notna(date) else f"{int(h.season)} W{int(h.week)}"
+                            opponent=h.get('opponent_team','')
+                            kind=h.get('season_type','REG')
+                            title=f"{label} / {opponent} / {kind}: {float(h.value):g}"
+                            bars.append(f'<span class="mini-bar" style="height:{max(8,min(100,abs(float(h.value))/vmax*100)):.0f}%" title="{esc(title)}"><b class="mini-bar-label">{float(h.value):g}</b></span>')
+                        chart_html=f'<div class="mini-chart-wrap"><div class="muted">Last {len(plot)} games (regular season + playoffs) / current line {float(r.line):g}</div><div class="mini-chart">{"".join(bars)}</div><details class="prop-details"><summary>Game dates &amp; opponents</summary><div class="muted">'+ '<br>'.join(esc(f"{pd.Timestamp(h.gameday):%m/%d/%y} / {h.opponent_team} / {h.season_type}: {h.value:g}") if pd.notna(h.get('gameday')) else esc(f"{int(h.season)} W{int(h.week)}: {h.value:g}") for _,h in plot.iterrows()) + '</div></details></div>'
                 rows.append(f'<div class="prop-row"><div class="prop-summary"><span>{esc(LABELS.get(r.market,r.market))}</span><strong>{r.line:g}</strong></div><div class="chips"><span class="chip chip-type">{esc(side_text)}</span><span class="chip chip-type">{esc(r.odds_type)}</span></div><div class="badge">{esc(lean)}</div><details class="prop-details"><summary>View analysis</summary><div class="muted">{esc(lean_detail)}<br>Historical comparison / not a validated prediction. Confirm availability in PrizePicks.</div></details>{chart_html}</div>')
             st.markdown(f'''<div class="card player-group"><div class="eyebrow">{esc(first.position)} / {esc(first.team)}</div><div class="player pick-title">{photo_markup(first.player,photo_url)}{esc(first.player)}</div><div class="muted">{esc(first.team)} {'vs' if first.home_away=='Home' else '@'} {esc(first.opponent)} / {first.game_time.tz_convert(timezone):%a %b %d, %I:%M %p %Z} / roster: {esc(first.get('roster_status') or 'unknown')}</div><div class='muted'>Role context: {esc(context_text)}</div>{''.join(rows)}</div>''',unsafe_allow_html=True)
         st.caption(f'{len(groups)} player matchups / {len(view)} matching lines. Each player stays together; evidence sorting ranks groups by their strongest historical prop.')
