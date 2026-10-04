@@ -90,13 +90,29 @@ def foundation(season,week,include_history=False,include_usage=False):
         health.append(dict(source='nflverse weekly stats',status='Not requested; opens with Player or Research',checked_at=None))
         return data,health
     frames=[]
+    history_snaps=[]
+    history_schedules=[]
     for year in [season-2,season-1]+([season] if week>1 else []):
         d,status=result(f'nflverse weekly stats {year}',lambda:frame(nfl.load_player_stats(year)))
         health.append(status)
         if not d.empty: frames.append(d)
-    data['stats']=prepare_stats(pd.concat(frames,ignore_index=True)) if frames else pd.DataFrame()
-    if not data['stats'].empty:
-        d=data['stats']; data['stats']=d[(d.season<season)|((d.season==season)&(d.week<week))]
+        snap, status = snap_source(year); health.append(status)
+        if not snap.empty: history_snaps.append(snap)
+        sched, status = result(f'nflverse history schedule {year}', lambda: frame(nfl.load_schedules(year)))
+        health.append(status)
+        if not sched.empty: history_schedules.append(sched)
+    from game_history import complete_history
+    identities, status = players_source(); health.append(status)
+    if not {'pfr_id', 'gsis_id'}.issubset(identities.columns):
+        identities = data['rosters']
+    data['stats'] = complete_history(
+        pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(),
+        pd.concat(history_snaps, ignore_index=True) if history_snaps else pd.DataFrame(),
+        identities,
+        pd.concat(history_schedules, ignore_index=True) if history_schedules else pd.DataFrame(),
+        season, week,
+    )
+    data['history_complete'] = len(history_snaps) == len(frames) == len(history_schedules) == len([season-2, season-1]+([season] if week>1 else []))
     return data,health
 
 def latest_depth(raw):
