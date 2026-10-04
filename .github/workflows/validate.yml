@@ -1,0 +1,81 @@
+name: Validate app
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: pip install -r requirements.txt
+      - name: Compile application modules
+        run: python -m py_compile app.py collector.py core.py opportunity.py storage.py tracking.py workload_ui.py
+      - name: Check grouped board and load-analysis interaction
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from streamlit.testing.v1 import AppTest
+          fixture = """
+          import pandas as pd
+          import sources, core, verification
+          board=pd.DataFrame([
+              dict(player='Test Player',team='NE',opponent='SEA',market=m,line=v,game_time=pd.Timestamp('2026-09-11T00:35:00Z'),odds_type='standard',projection_id=str(i),game_id='test-game',home_away='Home')
+              for i,(m,v) in enumerate([('rec_yds',63.5),('targets',8.0)])
+          ])
+          sources.board_source=lambda: ([], '2026-09-09T20:00:00Z')
+          sources.foundation=lambda *a,**k: ({'schedule':pd.DataFrame(),'rosters':pd.DataFrame(),'stats':pd.DataFrame(),'depth':pd.DataFrame(),'snaps':pd.DataFrame()},[])
+          core.parse_board=lambda raw: (board.copy(),{})
+          verification.attach_games=lambda b,*a: (b,[])
+          verification.resolve_player=lambda *a: (dict(gsis_id='test-id',position='WR',headshot_url='https://example.com/photo.png',status='ACT'),None)
+          """
+          import textwrap
+          at=AppTest.from_string(textwrap.dedent(fixture)+'\n'+Path('app.py').read_text()).run()
+          assert not at.exception, at.exception
+          cards=[m.value for m in at.markdown if 'player-group' in m.value and '<div class="card' in m.value]
+          assert len(cards)==1, cards
+          assert 'Thu Sep 10, 07:35 PM CDT' in cards[0], cards[0]
+          assert 'Thu Sep 10, 07:35 PM CDT' in next(s for s in at.selectbox if s.label=='Game / kickoff').options[1]
+          assert cards[0].count('Test Player')==1
+          assert 'Receiving yards' in cards[0] and 'Receiving targets' in cards[0]
+          assert 'History not loaded' in cards[0] and 'NO HISTORY' not in cards[0]
+          assert any(n.label=='Player page' and n.value==1 for n in at.number_input)
+          next(b for b in at.button if b.label=='Load analysis').click().run()
+          assert not at.exception, at.exception
+          assert at.session_state['board_history'] is True
+          assert any('NO HISTORY' in m.value for m in at.markdown)
+          print('Grouped props, complete-player pagination, and history toggle passed')
+
+          next(r for r in at.radio if r.label=='Navigate').set_value('Top picks').run()
+          assert not at.exception, at.exception
+          kickoff=next(s for s in at.selectbox if s.label=='Choose game / kickoff')
+          chosen=kickoff.options[1]
+          assert 'Thu Sep 10, 07:35 PM CDT' in chosen, chosen
+          props_game=next(s for s in at.selectbox if s.label=='Choose game / kickoff')
+          assert props_game.options[1]==chosen
+          kickoff.select(chosen).run()
+          assert not at.exception, at.exception
+          assert next(s for s in at.selectbox if s.label=='Choose game / kickoff').value==chosen
+          at.run()
+          assert not at.exception, at.exception
+          assert next(s for s in at.selectbox if s.label=='Choose game / kickoff').value==chosen
+          next(r for r in at.radio if r.label=='Navigate').set_value('Props').run()
+          next(r for r in at.radio if r.label=='Navigate').set_value('Top picks').run()
+          assert not at.exception, at.exception
+          assert next(s for s in at.selectbox if s.label=='Choose game / kickoff').value==chosen, 'Kickoff selection lost after navigation'
+          print('Top picks selection, rerun, and navigation passed')
+
+          compact_fixture=textwrap.dedent(fixture)+"\ncore.summarize=lambda *a,**k: dict(side='Over', games=18, baseline=90.0, side_hit_rate=0.8)\n"
+          compact=AppTest.from_string(compact_fixture+'\n'+Path('app.py').read_text()).run()
+          next(r for r in compact.radio if r.label=='Navigate').set_value('Top picks').run()
+          assert not compact.exception, compact.exception
+          cards=[m.value for m in compact.markdown if 'class="card compact-pick"' in m.value]
+          assert cards, 'No compact Top picks rendered'
+          assert all('<summary>Details</summary>' in card and '<details class="pick-details">' in card for card in cards)
+          assert all('Test Player' in card and 'Projection' in card and 'Uncalibrated' in card and 'MORE / OVER' in card for card in cards)
+          print('Compact Top picks retain player, direction, projection, and expandable evidence')
+          PY

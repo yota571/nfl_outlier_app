@@ -1,0 +1,56 @@
+{
+  "model_version": "team-share-v1",
+  "created_at": "2026-09-08T18:14:05.380568+00:00",
+  "test_season": 2025,
+  "warmup_season": 2024,
+  "method": "Expanding walk-forward; previous weeks only. Fixed 0.85 recency weighting, 10 player games and 8 team games. No held-out parameter tuning.",
+  "scope": "Counts conditional on offensive participation; not PrizePicks win rates or probability calibration. Same-team players with at least five prior appearances and nonzero prior opportunities.",
+  "source": "nflverse official weekly stats, PFR snaps, roster IDs",
+  "source_hashes": {
+    "stats-2024.parquet": "b680f642b765a38345183982c0ace38690fffb7133602493c11245009cd8fd3a",
+    "snaps-2024.parquet": "d83c11a0b16bef838919be0353ec10bff63edbbe1083d7c968978c841ed22770",
+    "rosters-2024.parquet": "4dbf1d1fa8d9cf50c0a0b50c8147b3a614865e05f3284043ac38b719651e5888",
+    "stats-2025.parquet": "03667ddfe21fc81a3979b14594bc6e5e5347393a1f06929c1590eec0e359c561",
+    "snaps-2025.parquet": "b988340d1e41aeaaa4a6014a785295d5fb3201948231c37f59ae1a864fba104f",
+    "rosters-2025.parquet": "9c1a1b432ba602b7b0c4c9edd16536fc04cdd9b033de666a9bd75abcf8fe1ba9"
+  },
+  "metrics": {
+    "carries": {
+      "games": 2776,
+      "players": 288,
+      "mae": 1.9636859078568207,
+      "baseline_mae": 1.9942471753350717,
+      "rmse": 3.2593406349063483,
+      "baseline_rmse": 3.3301655742943073,
+      "bias": 0.09598632376265925,
+      "beats_baseline_mae": true,
+      "mae_gain_95pct_player_bootstrap": [
+        0.0029284212657081045,
+        0.05731598779185455
+      ],
+      "scope_note": "Small retrospective count-error comparison, not calibrated PrizePicks probabilities."
+    },
+    "targets": {
+      "games": 4535,
+      "players": 436,
+      "mae": 1.623462152193344,
+      "baseline_mae": 1.6325213944453196,
+      "rmse": 2.201852883755972,
+      "baseline_rmse": 2.2203711291999833,
+      "bias": 0.16420971590393638,
+      "beats_baseline_mae": true,
+      "mae_gain_95pct_player_bootstrap": [
+        -0.004047522760186061,
+        0.022131974992495772
+      ],
+      "scope_note": "Small retrospective count-error comparison, not calibrated PrizePicks probabilities."
+    }
+  },
+  "rows": 12694,
+  "zero_opportunity_rows": 2502,
+  "probability_calibrated": false,
+  "history_through": {
+    "season": 2025,
+    "week": 18
+  }
+}
